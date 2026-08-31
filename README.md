@@ -275,7 +275,7 @@ curl -X POST "<BASE_URL>/api/v1/tasks" \
 }
 ```
 
-## ⚫ 9. 快速部署 (Quick Deploy)
+## 9. 快速部署 (Quick Deploy)
 
 ### 9.1 环境准备 (Prerequisites)
 
