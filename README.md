@@ -4,13 +4,13 @@
 
 **标准化 · 自动化 · 可复现 —— 面向组织内部的统一模型评估标尺**
 
-<kbd>![编号](https://img.shields.io/static/v1?label=编号&message=009&color=white&style=flat-square&labelColor=black)</kbd>
-<kbd>![协议](https://img.shields.io/static/v1?label=协议&message=AGPL-3.0&color=white&style=flat-square&labelColor=black)</kbd>
-<kbd>![作者](https://img.shields.io/static/v1?label=作者&message=查锐&color=white&style=flat-square&labelColor=black)</kbd>
-<kbd>![组织](https://img.shields.io/static/v1?label=组织&message=SME&color=white&style=flat-square&labelColor=black)</kbd>
-<kbd>![引擎](https://img.shields.io/static/v1?label=引擎&message=OpenCompass&color=white&style=flat-square&labelColor=black)</kbd>
-<kbd>![语言](https://img.shields.io/static/v1?label=语言&message=Python%20%2F%20TypeScript&color=white&style=flat-square&labelColor=black)</kbd>
-<kbd>![数据库](https://img.shields.io/static/v1?label=数据库&message=PostgreSQL&color=white&style=flat-square&labelColor=black)</kbd>
+![编号](https://img.shields.io/static/v1?label=编号&message=009&color=9b9b9b&style=flat-square&labelColor=black)
+![协议](https://img.shields.io/static/v1?label=协议&message=AGPL-3.0&color=9b9b9b&style=flat-square&labelColor=black)
+![作者](https://img.shields.io/static/v1?label=作者&message=查锐&color=9b9b9b&style=flat-square&labelColor=black)
+![组织](https://img.shields.io/static/v1?label=组织&message=SME&color=9b9b9b&style=flat-square&labelColor=black)
+![引擎](https://img.shields.io/static/v1?label=引擎&message=OpenCompass&color=9b9b9b&style=flat-square&labelColor=black)
+![语言](https://img.shields.io/static/v1?label=语言&message=Python%20%2F%20TypeScript&color=9b9b9b&style=flat-square&labelColor=black)
+![数据库](https://img.shields.io/static/v1?label=数据库&message=PostgreSQL&color=9b9b9b&style=flat-square&labelColor=black)
 
 </div>
 
