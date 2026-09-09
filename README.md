@@ -1,16 +1,16 @@
 <div align="center">
 
-# 企业级 AI 模型评估平台: 标准化大模型评测
+# 企业级 AI 模型评估平台: 标准化大模型评测基础设施
 
 **标准化 · 自动化 · 可复现 —— 面向组织内部的统一模型评估标尺**
 
-![编号](https://img.shields.io/static/v1?label=编号&message=009&color=e0e0e0&style=flat-square&labelColor=24292f)
-![协议](https://img.shields.io/static/v1?label=协议&message=AGPL-3.0&color=e0e0e0&style=flat-square&labelColor=24292f)
-![作者](https://img.shields.io/static/v1?label=作者&message=查锐&color=e0e0e0&style=flat-square&labelColor=24292f)
-![组织](https://img.shields.io/static/v1?label=组织&message=SME&color=e0e0e0&style=flat-square&labelColor=24292f)
-![引擎](https://img.shields.io/static/v1?label=引擎&message=OpenCompass&color=e0e0e0&style=flat-square&labelColor=24292f)
-![语言](https://img.shields.io/static/v1?label=语言&message=Python%20%2F%20TypeScript&color=e0e0e0&style=flat-square&labelColor=24292f)
-![数据库](https://img.shields.io/static/v1?label=数据库&message=PostgreSQL&color=e0e0e0&style=flat-square&labelColor=24292f)
+![编号](https://img.shields.io/static/v1?label=编号&message=id_x_009&color=lightgray&style=flat-square&labelColor=black)
+![协议](https://img.shields.io/static/v1?label=协议&message=AGPL--3.0&color=lightgray&style=flat-square&labelColor=black)
+![作者](https://img.shields.io/static/v1?label=作者&message=查锐&color=lightgray&style=flat-square&labelColor=black)
+![组织](https://img.shields.io/static/v1?label=组织&message=SME&color=lightgray&style=flat-square&labelColor=black)
+![引擎](https://img.shields.io/static/v1?label=引擎&message=OpenCompass&color=lightgray&style=flat-square&labelColor=black)
+![语言](https://img.shields.io/static/v1?label=语言&message=Python%20%2F%20TypeScript&color=lightgray&style=flat-square&labelColor=black)
+![数据库](https://img.shields.io/static/v1?label=数据库&message=PostgreSQL&color=lightgray&style=flat-square&labelColor=black)
 
 </div>
 
@@ -223,7 +223,7 @@ eval-platform/
 
 ## 8. API 接口文档 (API Documentation)
 
-平台对外暴露 REST API（前缀 `/api/v1`），除豁免路径外均需 `Authorization: Bearer <TOKEN>`。以下为设计契约汇总：
+平台对外暴露 REST API（前缀 `/api/v1`），除豁免路径外均需 `Authorization: Bearer <TOKEN>` 请求头鉴权；列表类接口统一支持 `?page=<页码>&page_size=<每页条数>` 分页参数与 `?status=<状态>` 过滤参数。
 
 <p align="center"><em>表 8-1 API 端点汇总</em></p>
 
@@ -244,7 +244,7 @@ eval-platform/
 
 典型异常码：`400` 配置校验失败；`401` 未鉴权/Token 失效；`403` 越权访问项目空间；`404` 资源不存在；`429` 并发/GPU 配额超限。
 
-创建评测任务示例：
+创建评测任务示例（请将 `<BASE_URL>` 与 `<TOKEN>` 替换为实际部署地址与访问凭证）：
 
 ```bash
 curl -X POST "<BASE_URL>/api/v1/tasks" \
@@ -306,6 +306,10 @@ helm upgrade --install eval-platform ./deploy/helm \
 
 # 等待全部 Pod 就绪
 kubectl -n eval-platform wait --for=condition=ready pod --all --timeout=600s
+
+# 验证：健康检查返回 200 即部署成功
+kubectl -n eval-platform port-forward svc/eval-api 8000:8000 &
+curl http://127.0.0.1:8000/api/v1/health
 ```
 
 关键配置（`values.yaml` 覆盖项）：`global.storageClass`（持久卷）、`postgresql.dsn`（元数据库）、`minio.endpoint`（对象存储）、`gpu.pool`（推理节点池标签与配额）、`vault.addr`（密钥服务）。
@@ -324,7 +328,7 @@ kubectl -n eval-platform port-forward svc/eval-web 8080:80
 # 浏览器访问 http://127.0.0.1:8080
 ```
 
-### 9.5 实施路径（里程碑）
+### 9.5 实施路径 (Roadmap)
 
 <p align="center"><em>表 9-1 分阶段实施路径</em></p>
 
@@ -334,8 +338,6 @@ kubectl -n eval-platform port-forward svc/eval-web 8080:80
 | 阶段二 · 引擎与数据 | 第 3–4 月 | 推理后端适配、公开数据集仓、任务编排状态机、自动评判与聚合 |
 | 阶段三 · 平台化 | 第 5–6 月 | Web 控制台、多租户权限、自动报告与对比看板、安全合规评测包 |
 | 阶段四 · 规模化 | 第 7–8 月 | GPU 弹性调度、持续回归、可观测告警、业务数据集持续运营 |
-
----
 
 ## 10. 模型评分图谱 (Model Score Graph)
 
@@ -388,7 +390,7 @@ kubectl -n eval-platform port-forward svc/eval-web 8080:80
 | Y 轴（纵轴） | 综合评分（能力域加权聚合） | 单一能力域得分 / 安全专项分 |
 | 气泡颜色 | 厂商 / 模型系列 | 推理后端 / 接入方式（自研·开源·商用API） |
 | 气泡大小 | 固定 | 日均调用量 / 评测频次 |
-| 连 线 | 同系列版本演进连线 | 性价比前沿（Pareto Frontier）开关 |
+| 连线 | 同系列版本演进连线 | 性价比前沿（Pareto Frontier）开关 |
 
 - 血缘可追溯：每个气泡绑定数据集快照、模型版本、推理引擎与超参指纹，点击可回溯原始评测任务。
 - 前端渲染：基于 ECharts / AntV 实现大规模气泡的流畅渲染与缩放，图谱快照可存档复现。
