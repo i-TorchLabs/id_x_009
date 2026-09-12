@@ -1,0 +1,56 @@
+# id_x_009 后端服务镜像（Litestar + Granian，引擎层 i-Core 作为 ASGI 宿主）。
+#
+# 构建上下文必须是 i-Core 仓库根，这样引擎层（main.py / src / utils / config）
+# 与业务插件（x_models/id_x_009）能被一并复制进镜像，保持原有相对 import
+# 与 config 解析（utils/config_parse_util.py 按 __file__ 定位 config/）。
+#
+#   podman build -t id_x_009-service -f x_models/id_x_009/ops/Dockerfile.service .
+
+FROM python:3.10-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    TZ=Asia/Shanghai
+
+WORKDIR /app/i-Core
+
+# 系统依赖：
+#   build-essential  编译 psycopg2 wheel
+#   libpq-dev        psycopg2 编译头
+#   curl             容器健康检查
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 先装依赖（利用 docker layer cache：requirements 变化才重装）
+COPY x_models/id_x_009/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# 按需复制 id_x_009 运行所需文件，不带其他插件目录。
+#   main.py / src / utils / config    引擎层与配置
+#   x_models/_contracts               插件契约公共包（id_x_009 的 x_plugin.py 依赖）
+#   x_models/id_x_009                 业务插件本体
+COPY main.py /app/i-Core/main.py
+COPY src /app/i-Core/src
+COPY utils /app/i-Core/utils
+COPY config /app/i-Core/config
+COPY x_models/_contracts /app/i-Core/x_models/_contracts
+COPY x_models/id_x_009 /app/i-Core/x_models/id_x_009
+
+# 覆盖为容器专用配置：镜像内只含 id_x_009，MODELS 必须指向 id_x_009，
+# 否则插件不加载 -> 路由 404 -> HAProxy 健康检查失败 -> 503。
+COPY x_models/id_x_009/ops/base_config.container.toml /app/i-Core/config/base_config.toml
+
+# 运行时目录（logs 由 up.sh 挂卷持久化）
+RUN mkdir -p /app/i-Core/logs
+
+EXPOSE 7000
+
+# Granian 作为 ASGI 服务器跑引擎层 main:obj（Litestar 实例）。
+# LISTEN_PORT 在 base_config.toml 中为 7000。
+CMD ["python", "main.py"]
