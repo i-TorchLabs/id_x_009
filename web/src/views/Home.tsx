@@ -36,16 +36,44 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-const VENDOR_OPACITY_STEPS = [1, 0.72, 0.52, 0.36, 0.24, 0.16, 0.12, 0.1, 0.09, 0.08];
 const ACCESS_TYPES = ["api", "opensource", "selfhost"];
 const BACKENDS = ["vllm", "trtllm", "tgi", "api"];
 const TASK_STATUSES = ["Pending", "Running", "Paused", "Done", "Failed"];
 
-function vendorOpacity(vendor: string, vendors: string[]): number {
+// 厂商调色板：学术规范但提亮饱和与明度，保证高对比与可读性。
+// 设计原则：
+//   1. 色相均衡分布在色环上，覆盖蓝/红/绿/橙/紫/粉/青/黄/灰紫/棕；
+//   2. 序列内严格交替冷暖，使任意相邻序号都具备高感知距离；
+//   3. 明度统一在 ~50-55%、饱和度 ~60-70%，明亮清晰而不刺眼；
+//   4. 保持学术参考刊物（Nature / Science 图表）的克制底色，避免荧光感。
+const VENDOR_PALETTE = [
+  "#2E6FB7", // Academic blue    — 冷：经典学术主蓝
+  "#C0392B", // Vermilion        — 暖：朱红
+  "#27946C", // Sea green        — 冷：海绿
+  "#D17B2C", // Pumpkin          — 暖：南瓜橙
+  "#7D54B5", // Royalty purple   — 冷：皇室紫
+  "#D14A6F", // Carmine pink     — 暖：胭脂粉
+  "#1A8AA0", // Teal cyan        — 冷：青蓝
+  "#C9A227", // Old gold         — 暖：古金
+  "#8E7CC3", // Lavender slate   — 冷：薰衣草灰紫
+  "#A0522D", // Sienna           — 暖：赭褐
+];
+
+// Pareto 前沿用色：深邃的暗琥珀，与所有厂商点（明度均在 50+）形成
+// 明显明度反差，作为参考边界突出而仍属学术色调。
+const PARETO_COLOR = "#1A1208";
+// 气泡不透明度：饱和色相 + 高不透明度，最大化清晰度。
+const BUBBLE_FILL_OPACITY = 0.92;
+// 同系列版本连线：作为次级视觉层级，半透明以让位给气泡。
+const SERIES_STROKE_OPACITY = 0.65;
+// Pareto 前沿线：高不透明度以承担"边界"语义。
+const PARETO_STROKE_OPACITY = 0.92;
+
+function vendorColor(vendor: string, vendors: string[]): string {
   const sorted = [...vendors].sort();
   const i = sorted.indexOf(vendor);
-  if (i < 0) return VENDOR_OPACITY_STEPS[VENDOR_OPACITY_STEPS.length - 1];
-  return VENDOR_OPACITY_STEPS[i % VENDOR_OPACITY_STEPS.length];
+  if (i < 0) return VENDOR_PALETTE[0];
+  return VENDOR_PALETTE[i % VENDOR_PALETTE.length];
 }
 
 function formatCost(cost: number): string {
@@ -370,7 +398,7 @@ export default function Home() {
     const plotH = H - MT - MB;
 
     if (points.length === 0) {
-      return { W, H, ML, MR, MT, MB, plotW, plotH, xMin: 0, xMax: 1, yMin: 0, yMax: 100, logMin: 0, logMax: 1, xTicks: [] as number[], yTicks: [] as number[], toX: (_c: number) => 0, toY: (_s: number) => 0, seriesLines: [] as { pts: { x: number; y: number }[] }[], frontierPts: [] as { x: number; y: number }[] };
+      return { W, H, ML, MR, MT, MB, plotW, plotH, xMin: 0, xMax: 1, yMin: 0, yMax: 100, logMin: 0, logMax: 1, xTicks: [] as number[], yTicks: [] as number[], toX: (_c: number) => 0, toY: (_s: number) => 0, seriesLines: [] as { pts: { x: number; y: number }[]; vendor: string }[], frontierPts: [] as { x: number; y: number }[] };
     }
 
     const costs = points.map((p) => Math.max(p.costPerTask, 1e-6));
@@ -409,18 +437,18 @@ export default function Home() {
     for (let v = yMin; v <= yMax; v += yStep) yTicks.push(v);
     if (yTicks[yTicks.length - 1] !== yMax) yTicks.push(yMax);
 
-    // 同系列版本连线
+    // 同系列版本连线（保留 vendor 以便上色）
     const groups = new Map<string, ScorePoint[]>();
     for (const p of points) {
       const key = `${p.vendor}::${p.series}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(p);
     }
-    const seriesLines: { pts: { x: number; y: number }[] }[] = [];
+    const seriesLines: { pts: { x: number; y: number }[]; vendor: string }[] = [];
     for (const g of groups.values()) {
       if (g.length >= 2) {
         const sorted = [...g].sort((a, b) => a.costPerTask - b.costPerTask);
-        seriesLines.push({ pts: sorted.map((p) => ({ x: toX(p.costPerTask), y: toY(p.compositeScore) })) });
+        seriesLines.push({ pts: sorted.map((p) => ({ x: toX(p.costPerTask), y: toY(p.compositeScore) })), vendor: g[0].vendor });
       }
     }
 
@@ -1183,9 +1211,9 @@ export default function Home() {
               key={`series-${i}`}
               points={line.pts.map((p) => `${p.x},${p.y}`).join(" ")}
               fill="none"
-              stroke={fg}
-              strokeOpacity={0.15}
-              strokeWidth={1}
+              stroke={vendorColor(line.vendor, graphData.vendors)}
+              strokeOpacity={SERIES_STROKE_OPACITY}
+              strokeWidth={1.2}
             />
           ))}
 
@@ -1195,15 +1223,15 @@ export default function Home() {
               <polyline
                 points={geom.frontierPts.map((p) => `${p.x},${p.y}`).join(" ")}
                 fill="none"
-                stroke={fg}
-                strokeOpacity={0.5}
+                stroke={PARETO_COLOR}
+                strokeOpacity={PARETO_STROKE_OPACITY}
                 strokeWidth={1.5}
                 strokeDasharray="6 4"
               />
               <text
                 x={geom.frontierPts[geom.frontierPts.length - 1].x + 6}
                 y={geom.frontierPts[geom.frontierPts.length - 1].y - 6}
-                style={{ fontFamily: SF_TEXT, fontSize: "10px", fill: fg3, letterSpacing: "0.02em" }}
+                style={{ fontFamily: SF_TEXT, fontSize: "10px", fill: PARETO_COLOR, letterSpacing: "0.02em", fontWeight: 600 }}
               >
                 Pareto 前沿
               </text>
@@ -1214,7 +1242,7 @@ export default function Home() {
           {graphData.points.map((p) => {
             const cx = geom.toX(p.costPerTask);
             const cy = geom.toY(p.compositeScore);
-            const opacity = vendorOpacity(p.vendor, graphData.vendors);
+            const color = vendorColor(p.vendor, graphData.vendors);
             const isHovered = hoverPoint?.point.modelId === p.modelId;
             const isSelected = selectedPoint?.modelId === p.modelId;
             const r = isHovered ? 12 : 9;
@@ -1224,8 +1252,8 @@ export default function Home() {
                 cx={cx}
                 cy={cy}
                 r={r}
-                fill={fg}
-                fillOpacity={opacity}
+                fill={color}
+                fillOpacity={BUBBLE_FILL_OPACITY}
                 stroke={p.onFrontier || isSelected ? accent : "none"}
                 strokeWidth={p.onFrontier || isSelected ? 2 : 0}
                 style={{
@@ -1301,8 +1329,7 @@ export default function Home() {
                   width: "10px",
                   height: "10px",
                   borderRadius: "50%",
-                  background: fg,
-                  opacity: vendorOpacity(v, graphData.vendors),
+                  background: vendorColor(v, graphData.vendors),
                 }}
               />
               <span style={{ fontFamily: SF_TEXT, fontSize: "11px", color: fg2, letterSpacing: "-0.1px" }}>{v}</span>

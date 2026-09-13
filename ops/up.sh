@@ -40,6 +40,12 @@ if ! podman volume exists id_x_009_db; then
   echo "[up] 数据卷 id_x_009_db 已创建"
 fi
 
+# 日志目录（宿主机 i-Core 仓库根下的 logs/）：macOS podman machine
+# 不会自动创建 bind mount 源，且对相对路径解析不可靠（会解释为 VM 内
+# /logs），这里解析为绝对路径并预先创建。
+LOGS_HOST_DIR="$(cd ../../../ && pwd)/logs"
+mkdir -p "$LOGS_HOST_DIR"
+
 # ============================================
 # 4. 启动容器（已存在则跳过）
 # ============================================
@@ -93,7 +99,7 @@ if ! podman container exists id_x_009-service; then
     -e DB_USERNAME="${POSTGRES_USER:-postgres}" \
     -e DB_PASSWORD="${POSTGRES_PASSWORD:-P@sspostgres!}" \
     -e PROJECT_PATH=/app/i-Core \
-    -v ../../../logs:/app/i-Core/logs \
+    -v "$LOGS_HOST_DIR":/app/i-Core/logs \
     --health-cmd "curl -s -o /dev/null http://127.0.0.1:7000/b/id_x_009/graphql || exit 1" \
     --health-interval 15s \
     --health-timeout 5s \
