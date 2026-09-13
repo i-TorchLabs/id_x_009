@@ -4,13 +4,12 @@
 
 **标准化 · 自动化 · 可复现 —— 面向组织内部的统一模型评估标尺**
 
-![编号](https://img.shields.io/static/v1?label=编号&message=009&color=8B1A1A&style=for-the-badge&labelColor=555)
-![协议](https://img.shields.io/static/v1?label=协议&message=AGPL-3.0&color=8B1A1A&style=for-the-badge&labelColor=555)
-![作者](https://img.shields.io/static/v1?label=作者&message=查锐&color=8B1A1A&style=for-the-badge&labelColor=555)
-![组织](https://img.shields.io/static/v1?label=组织&message=SME&color=8B1A1A&style=for-the-badge&labelColor=555)
-![引擎](https://img.shields.io/static/v1?label=引擎&message=Litestar%20%2B%20Granian&color=8B1A1A&style=for-the-badge&labelColor=555)
-![语言](https://img.shields.io/static/v1?label=语言&message=Python%20%2B%20TypeScript&color=8B1A1A&style=for-the-badge&labelColor=555)
-![数据库](https://img.shields.io/static/v1?label=数据库&message=PostgreSQL&color=8B1A1A&style=for-the-badge&labelColor=555)
+![编号](https://img.shields.io/static/v1?label=编号&message=009&color=C3272B&style=for-the-badge&labelColor=555)
+![协议](https://img.shields.io/static/v1?label=协议&message=AGPL-3.0&color=C3272B&style=for-the-badge&labelColor=555)
+![作者](https://img.shields.io/static/v1?label=作者&message=查锐&color=C3272B&style=for-the-badge&labelColor=555)
+![组织](https://img.shields.io/static/v1?label=组织&message=SME&color=C3272B&style=for-the-badge&labelColor=555)
+![引擎](https://img.shields.io/static/v1?label=引擎&message=Litestar%20%2B%20Granian&color=C3272B&style=for-the-badge&labelColor=555)
+![语言](https://img.shields.io/static/v1?label=语言&message=Python%20%2B%20TypeScript&color=C3272B&style=for-the-badge&labelColor=555)
 
 </div>
 
