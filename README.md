@@ -1,15 +1,16 @@
 <div align="center">
 
-# ID-009: AI 模型评测平台（标准化大模型评测）
+# ID-009: AI 模型评测平台
 
 **标准化 · 自动化 · 可复现 —— 面向组织内部的统一模型评估标尺**
 
-![编号](https://img.shields.io/static/v1?label=编号&message=009&color=C0392B&style=flat-square&labelColor=gray)
-![协议](https://img.shields.io/static/v1?label=协议&message=AGPL-3.0&color=C0392B&style=flat-square&labelColor=gray)
-![作者](https://img.shields.io/static/v1?label=作者&message=查锐&color=C0392B&style=flat-square&labelColor=gray)
-![组织](https://img.shields.io/static/v1?label=组织&message=SME&color=C0392B&style=flat-square&labelColor=gray)
-![引擎](https://img.shields.io/static/v1?label=引擎&message=OpenCompass&color=C0392B&style=flat-square&labelColor=gray)
-![数据库](https://img.shields.io/static/v1?label=数据库&message=PostgreSQL&color=C0392B&style=flat-square&labelColor=gray)
+![编号](https://img.shields.io/static/v1?label=编号&message=009&color=8B1A1A&style=for-the-badge&labelColor=555)
+![协议](https://img.shields.io/static/v1?label=协议&message=AGPL-3.0&color=8B1A1A&style=for-the-badge&labelColor=555)
+![作者](https://img.shields.io/static/v1?label=作者&message=查锐&color=8B1A1A&style=for-the-badge&labelColor=555)
+![组织](https://img.shields.io/static/v1?label=组织&message=SME&color=8B1A1A&style=for-the-badge&labelColor=555)
+![引擎](https://img.shields.io/static/v1?label=引擎&message=Litestar%20%2B%20Granian&color=8B1A1A&style=for-the-badge&labelColor=555)
+![语言](https://img.shields.io/static/v1?label=语言&message=Python%20%2B%20TypeScript&color=8B1A1A&style=for-the-badge&labelColor=555)
+![数据库](https://img.shields.io/static/v1?label=数据库&message=PostgreSQL&color=8B1A1A&style=for-the-badge&labelColor=555)
 
 </div>
 
@@ -21,7 +22,7 @@
 
 **Description**: 随着大语言模型（Large Language Model, LLM）在组织内部快速落地，业务团队同时引入开源模型、自研模型与多个外部商用 API，模型数量快速增长、能力差异显著、版本迭代频繁。当前评测工作高度依赖人工脚本与零散的公开榜单，存在标准不统一、过程不可复现、结果难比较、成本不可控等突出问题，难以支撑组织级、多维度的模型选型与持续验收。
 
-本平台以 OpenCompass 司南为对标基准，构建一套六层解耦、配置即代码、全流程无人值守的评测基础设施：统一数据集、指标定义、评判协议与报告格式，覆盖模型选型、版本验收、上线前对齐与安全评估，以及线上模型的持续回归与监控。与同类方案相比，平台在司南能力之上增强了组织数据集仓、多租户配额、安全合规评测包与持续回归四项组织级能力。
+本平台以「六能力域加权聚合 × 推理成本」为核心评估标尺，构建一套四层解耦、配置即代码、全流程无人值守的评测基础设施 Demo：统一数据集、指标定义、评判协议与报告格式，覆盖模型选型、版本验收与上线前对齐，并以模型评分图谱（综合评分 × 推理成本散点 + 性价比前沿）为选型与成本决策提供统一视图。与同类方案相比，平台将「可复现指纹」「断点续跑」「性价比前沿」三项关键能力下沉为平台基座，开箱即有种子数据，评分图谱秒级可视。
 
 ![image_2.png](img/image_2.png)
 
@@ -29,20 +30,20 @@
 
 ## 2. 核心特性 (Features)
 
-- 标准化评测体系：统一评测数据集、指标定义、评判协议与报告格式，结果横向可比、纵向可追。
-- 全流程自动化：数据加载、模型推理、自动评判、结果聚合与报告生成端到端无人值守，支持断点续跑。
-- 多维评测能力：覆盖客观知识与推理、语言与生成、对齐与安全、长上下文、多模态与业务专项六大能力域。
-- 模型评分图谱：以「综合评分 × 推理成本」散点图谱叠加性价比前沿（Pareto Frontier），支撑选型与成本决策。
-- 组织级治理：多租户隔离、RBAC 权限、GPU 配额调度、全链路审计与合规专项评测准入门禁。
+- 标准化评测体系：统一评测数据集、六能力域指标定义、加权聚合协议与报告格式，结果横向可比、纵向可追。
+- 全流程自动化：任务创建即入调度队列，守护线程推进状态机并落库，支持暂停（断点续跑）与失败重跑。
+- 模型评分图谱：以「综合评分 × 推理成本」散点图谱叠加性价比前沿（Pareto Frontier），同模型多版本连点成线，支撑选型与成本决策。
+- 可复现指纹：数据集快照、模型版本、推理引擎与超参四要素全程留痕，任意评分可一键回溯原始任务。
+- GraphQL 统一端点：基于 Strawberry GraphQL 暴露 Query/Mutation，单一 `/b/id_x_009/graphql` 端点承载全部交互。
 
 ## 3. 项目亮点 (Highlights)
 
-1. **全程可复现** —— 数据集快照、模型版本、推理引擎与超参指纹四要素全程留痕，任何评分可一键回溯原始任务并重算。
-2. **司南能力对齐 + 组织级增强** —— 复用 OpenCompass 任务模型与算子规范，叠加多租户配额、组织数据集仓与合规评测包，避免重复造轮子。
-3. **性价比前沿选型** —— 将「高评分 · 低成本」甜点区量化可视，同系列版本连点成线，迭代收益与成本变化一图可读。
-4. **断点续跑与分片重算** —— 推理结果落盘，失败分片单独重算，万级样本任务无需全量重跑，GPU 成本可控。
-5. **云原生弹性推理** —— Kubernetes + Argo Workflows 编排，vLLM / TensorRT-LLM / TGI 多引擎择优，FP8/INT4 量化加速。
-6. **持续回归闭环** —— 模型上线后按计划触发回归评测，对比历史基线自动告警，指标劣化即刻发现。
+1. **性价比前沿选型** —— 服务端按成本升序扫描评分刷新包络计算 Pareto 前沿，并按「评分 / 成本」给出性价比排名，同成本最优评分模型一图可读。
+2. **断点续跑与失败重跑** —— Running 可暂停（Paused 保持进度），Paused/Failed 均可由 `resumeTask` 重新接管；服务重启后遗留的 Pending 任务亦可被重新拉起。
+3. **可复现指纹贯穿全程** —— `_build_fingerprint` 将数据集快照 + 模型版本 + 引擎版本 + 超参四要素序列化为任务指纹，结果生成以指纹为随机种子，同任务重算风格一致。
+4. **守护线程与主循环解耦** —— 评测执行运行于独立守护线程，使用专属 asyncpg 引擎与独立事件循环，避免跨循环复用共享连接池导致 `attached to a different loop`，主请求循环不受长任务影响。
+5. **多 Worker 进度一致** —— 任务状态与进度全程落库（非内存），Granian 多 worker 下任意进程轮询 `taskDetail` 均可见一致进度。
+6. **六能力域加权聚合** —— 客观知识与推理（0.30）、语言与生成（0.20）、对齐与安全（0.15）、长上下文（0.15）、多模态（0.10）、业务专项（0.10）六域加权为综合评分，权重可配。
 
 ## 4. 技术栈 (Tech Stack)
 
@@ -50,212 +51,237 @@
 
 | 分类 | 名称 | 版本 | 用途 |
 | --- | --- | --- | --- |
-| 编程语言 | Python | 3.10+ | 评测引擎、算子与后端服务实现 |
-| 编程语言 | TypeScript | 5.x | Web 控制台前端 |
-| 核心框架 | FastAPI | 0.110+ | REST API、任务编排与算子服务 |
-| 核心框架 | React | 18.x | Web 控制台、报告与对比看板 |
-| 评测引擎 | OpenCompass | 最新稳定版 | 司南能力对齐、任务运行时与配置规范 |
-| 推理引擎 | vLLM / TensorRT-LLM / TGI | 最新稳定版 | 高吞吐 / 低延迟 / 多模型并行推理 |
-| 任务调度 | Argo Workflows | 3.x | 评测 DAG 编排、分片并行与断点续跑 |
-| 数据库/存储 | PostgreSQL | 13+ | 任务、模型、指标元数据与权限存储 |
-| 数据库/存储 | Milvus | 2.x | RAG 评测语料与检索质量评估 |
-| 数据库/存储 | MinIO / S3 | 最新稳定版 | 数据集、模型权重、推理日志与报告 |
-| 数据库/存储 | Redis / Kafka | 7.x / 3.x | 任务状态缓存限流 / 事件总线 |
-| 构建工具 | Kubernetes | 1.28+ | 容器编排、节点池与 GPU 调度 |
-| 构建工具 | GitLab CI / ArgoCD / Terraform | 最新稳定版 | CI 构建、GitOps 部署与云资源声明式管理 |
-| 可观测 | Prometheus / Grafana / Loki | 最新稳定版 | 指标采集、监控面板与全链路日志 |
-| 可视化 | ECharts / AntV | 5.x | 评分图谱与评测结果多维图表 |
-| 安全 | HashiCorp Vault | 1.x | API Key、模型凭证与密钥统一管理 |
+| 前端框架 | Next.js | 16.2.3 | React 全栈应用框架 |
+| 前端框架 | React | 19 | UI 组件渲染 |
+| 前端组件 | HeroUI | - | 组件库 |
+| 前端样式 | Tailwind CSS | 4 | 原子化样式 |
+| 后端引擎 | Litestar | - | ASGI Web 框架 |
+| 后端服务器 | Granian | - | 高性能 ASGI 服务器 |
+| API 层 | Strawberry GraphQL | - | GraphQL Query/Mutation |
+| ORM | SQLAlchemy | 2.0 async | 异步数据访问 |
+| 数据库驱动 | asyncpg | - | 异步 PostgreSQL 驱动 |
+| 数据库 | PostgreSQL | 18 | 任务/模型/指标元数据存储 |
+| 负载均衡 | HAProxy | - | :8080 流量入口 |
+| 部署 | Podman | - | 四容器同 Pod 编排 |
 
 ## 5. 整体架构图 (Overall Architecture Diagram)
 
-平台采用六层架构，自上而下分别为用户接入层、应用服务层、评测引擎层、数据与知识层、模型推理层和基础设施层，层间通过标准契约解耦，支持独立演进与替换。
+平台采用四层分层架构（控制器薄转发 → 视图业务 → 模型数据 → 模式契约），自上而下依次为客户端、接入层、前端层、控制器层、视图业务层、模型数据层与数据层；评测执行由独立守护线程承担，与请求生命周期完全解耦。
 
 ```mermaid
 graph TD
-    subgraph L1["L1 用户接入层"]
-        UI["Web 控制台"]
-        CLI["CLI / SDK"]
-        API_IN["REST API"]
-        SSO["SSO / 多租户门户"]
+    subgraph L1["L1 客户端层"]
+        Browser["浏览器 / API 客户端"]
     end
 
-    subgraph L2["L2 应用服务层"]
-        ORCH["任务编排服务"]
-        REG["模型注册中心"]
-        RPT["报告与看板服务"]
-        GRAPH["模型评分图谱"]
-        AUTH["权限与审计"]
+    subgraph L2["L2 接入层"]
+        HAProxy["HAProxy :8080"]
     end
 
-    subgraph L3["L3 评测引擎层"]
-        OC["OpenCompass 引擎"]
-        OPS["评测算子库"]
-        ADAPT["推理后端适配层"]
-        PIPE["自动化流水线"]
+    subgraph L3["L3 前端层"]
+        Next["Next.js 16 + React 19<br/>HeroUI + Tailwind CSS 4"]
     end
 
-    subgraph L4["L4 数据与知识层"]
-        DS["评测数据集仓"]
-        DSV["数据集版本管理"]
-        ANS["答案与标注库"]
-        RES["评测结果存储"]
+    subgraph L4["L4 控制器层"]
+        Ctrl["x_controllers.py<br/>薄转发 + Bearer 鉴权"]
+        GQL["Strawberry GraphQL<br/>/b/id_x_009/graphql"]
     end
 
-    subgraph L5["L5 模型推理层"]
-        GPU["GPU 推理集群 A100/H800"]
-        VLLM["vLLM / TRT-LLM / TGI"]
-        QUANT["量化加速 FP8/INT4"]
+    subgraph L5["L5 视图业务层"]
+        Auth["认证视图"]
+        Reg["模型注册视图"]
+        Orch["任务编排视图<br/>状态机推进 + 断点续跑"]
+        Graph["评分图谱视图<br/>Pareto 前沿计算"]
+        Runner["守护线程 eval-runner<br/>模拟执行 + 结果生成"]
     end
 
-    subgraph L6["L6 基础设施层"]
-        K8S["Kubernetes 底座"]
-        S3["对象存储 MinIO/S3"]
-        MQ["消息队列 Kafka"]
-        OBS["可观测 Prometheus/Grafana/Loki"]
-        VAULT["Vault 密钥管理"]
+    subgraph L6["L6 模型数据层"]
+        Model["x_models.py<br/>SQLAlchemy 2.0 async"]
+        Seed["种子数据<br/>16 模型 / 6 数据集 / 16 任务"]
     end
 
-    UI -->|"HTTPS / REST"| ORCH
-    CLI -->|"REST"| ORCH
-    API_IN -->|"REST"| ORCH
-    SSO -->|"OAuth2/SAML"| AUTH
-    ORCH -->|"评测 DAG"| OC
-    REG -->|"模型元数据/版本"| OC
-    OC --> OPS
-    OC --> PIPE
-    PIPE -->|"推理调用"| ADAPT
-    ADAPT -->|"统一推理抽象"| VLLM
-    VLLM --> GPU
-    QUANT --> GPU
-    OC -->|"加载数据集"| DS
-    DS --> DSV
-    PIPE -->|"指标与日志落盘"| RES
-    RES -->|"加权聚合评分"| GRAPH
-    RES -->|"报告数据"| RPT
-    ORCH -->|"异步事件"| MQ
-    K8S -.承载.- ORCH
-    K8S -.承载.- GPU
-    DS -.持久化.- S3
-    AUTH -.凭证.- VAULT
-    OBS -.监控.- GPU
+    subgraph L7["L7 数据层"]
+        PG[("PostgreSQL 18<br/>eval_tasks / models / eval_results")]
+    end
+
+    Browser --> HAProxy
+    HAProxy --> Next
+    HAProxy -->|" /b/id_x_009/* "| GQL
+    Next --> GQL
+    GQL --> Ctrl
+    Ctrl --> Auth
+    Ctrl --> Reg
+    Ctrl --> Orch
+    Ctrl --> Graph
+    Orch --> Runner
+    Runner -->|"状态机 + 结果落库"| Model
+    Auth --> Model
+    Reg --> Model
+    Graph --> Model
+    Model --> PG
 ```
 
-<p align="center"><em>图 5-1 平台整体架构图（自上而下六层，箭头为关键调用链）</em></p>
+<p align="center"><em>图 5-1 平台整体架构图（自上而下分层，守护线程承担评测执行）</em></p>
 
 ## 6. 请求流转图 (Request Flow Diagram)
 
-以「创建并执行一次评测任务」为例，完整生命周期如下：
+以「创建并执行一次评测任务」为例，完整生命周期如下：客户端提交任务后立即返回，守护线程异步推进状态机，客户端轮询任务详情与报告，最终在评分图谱中可视化。
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant U as 用户 (Web/CLI)
-    participant GW as REST API (L1)
-    participant AM as 权限与审计 (L2)
-    participant ORCH as 任务编排服务 (L2)
-    participant OC as OpenCompass 引擎 (L3)
-    participant ADAPT as 推理后端适配层 (L3)
-    participant DS as 评测数据集仓 (L4)
-    participant RES as 评测结果存储 (L4)
-    participant GPU as 推理集群 (L5)
-    participant MQ as 事件总线 (L6)
+    participant C as 客户端
+    participant G as GraphQL 端点
+    participant V as 视图层 x_views
+    participant T as 守护线程 eval-runner
+    participant M as 模型层 x_models
+    participant D as PostgreSQL
 
-    U->>GW: POST /api/v1/tasks (Bearer Token)
-    GW->>AM: 鉴权与配额校验
-    alt 鉴权失败或配额不足
-        AM-->>U: 401 / 429 (拒绝并审计留痕)
-    else 校验通过
-        AM-->>GW: 放行
+    C->>G: Mutation: createTask (model_id + dataset_ids + 超参)
+    G->>V: 转发创建请求
+    V->>M: 构建 fingerprint + 持久化 EvalTask(Pending)
+    M->>D: INSERT eval_tasks
+    V-->>C: 返回 task_uid (Pending)
+    V->>T: 启动守护线程 (与请求解耦)
+
+    loop 状态机推进 (每秒一tick)
+        T->>M: 读取任务 + 推进进度
+        alt Pending -> Running
+            T->>D: UPDATE status=Running, progress++
+        else progress < 100
+            T->>D: UPDATE progress += 6~14
+        else progress >= 100
+            T->>T: 按画像+fingerprint种子生成六域得分
+            T->>M: 写入 EvalResult
+            T->>D: UPDATE status=Done + INSERT eval_results
+        end
     end
-    GW->>ORCH: 提交任务 (Draft -> Pending)
-    ORCH->>MQ: 发布任务事件, 进入优先级队列
-    ORCH->>OC: 调度执行 (Pending -> Running)
-    OC->>DS: 加载数据集快照 (版本指纹留痕)
-    loop 分片并行 (可断点续跑)
-        OC->>ADAPT: 推理请求 (统一抽象)
-        ADAPT->>GPU: vLLM / TRT-LLM / TGI 调用
-        GPU-->>ADAPT: 生成结果
-        ADAPT-->>OC: 结果落盘
+
+    alt 暂停 (Paused)
+        C->>G: Mutation: pauseTask
+        T-->>T: 检测 Paused 后保持等待
+    else 恢复 (resumeTask)
+        C->>G: Mutation: resumeTask
+        G->>V: Paused->Running 或 Failed->Pending 重跑
     end
-    alt 客观题
-        OC->>OC: 自动评分 (Accuracy / Pass@k)
-    else 主观题
-        OC->>GPU: LLM-as-Judge 评判
-        OC->>OC: 抽样人工双盲复核
-    end
-    OC->>RES: 聚合指标 + 全量推理日志 (Running -> Done)
-    RES-->>U: 报告与评分图谱更新 (Webhook/IM 通知)
-    alt 分片失败
-        OC->>OC: 单分片重算, 失败则 Failed + 告警
-    end
+
+    C->>G: Query: taskDetail / taskReport
+    G->>V: 查询任务状态与报告
+    V->>M: 联表加载 EvalTask + EvalResult
+    M->>D: SELECT
+    V-->>C: 返回进度 / 六域得分 / 综合评分
+
+    C->>G: Query: scoreCostGraph
+    G->>V: 聚合每模型最新结果 + Pareto 前沿
+    V->>M: 加载 EvalResult + Model
+    M->>D: SELECT
+    V-->>C: 返回散点 + 前沿 + 性价比排名
 ```
 
-<p align="center"><em>图 6-1 评测任务请求流转图（含鉴权、评判与异常分支）</em></p>
+<p align="center"><em>图 6-1 评测任务请求流转图（含状态机推进、断点续跑与图谱聚合）</em></p>
 
-任务状态机：Draft（草稿）→ Pending（待调度）→ Running（推理评判中）→ Done（完成）/ Failed（失败告警），Running 可切换至 Paused（暂停，支持断点续跑）。
+任务状态机：Draft（草稿）→ Pending（待调度）→ Running（推理评判中）→ Done（完成）/ Failed（失败告警），Running 可切换至 Paused（暂停，支持断点续跑）；Paused 与 Failed 均可由 `resumeTask` 恢复。
 
 ## 7. 目录结构 (Directory Structure)
 
 ```text
 id_x_009/
-├── README.md                 # 本文档（建设方案与平台说明）
-├── LICENSE                   # AGPL-3.0 许可证
-└── img/                      # 文档配图（架构图 / 价值流 / 图谱样例）
-    ├── image_1.png           # 评测核心价值流
-    ├── image_2.png           # 平台分层架构总览
-    ├── image_3.jpeg          # 模型评分图谱样例
-    └── image_4.png           # 评分图谱 UI 界面样式样例
-
-# 平台代码仓（规划中的 monorepo 布局）
-eval-platform/
-├── api/                      # FastAPI 后端：任务/模型/数据集/报告服务
-├── web/                      # React + TypeScript Web 控制台
-├── engine/                   # OpenCompass 引擎封装与评测算子库
-├── adapters/                 # vLLM / TRT-LLM / TGI 推理后端适配插件
-├── datasets/                 # 公开基准与自建业务数据集（版本化快照）
-├── deploy/
-│   ├── helm/                 # Kubernetes Helm Chart
-│   └── terraform/            # 云资源声明式管理
-└── docs/                     # 算子开发指南与接入文档
+├── __init__.py
+├── x_plugin.py                # 插件入口（懒加载 Base + 注入 session_maker）
+├── requirements.txt           # Python 依赖
+├── LICENSE                    # AGPL-3.0
+├── README.md                  # 本文档
+├── docs/
+│   └── ops.md                 # 部署说明（拓扑 / 端口 / 种子数据 / 配置要点）
+├── img/                       # 文档配图
+│   ├── image_1.png            # 评测核心价值流
+│   ├── image_2.png            # 平台分层架构总览
+│   ├── image_3.jpeg           # 模型评分图谱样例
+│   └── image_4.png            # 评分图谱 UI 界面样式样例
+├── src/
+│   ├── __init__.py
+│   ├── controllers/
+│   │   └── x_controllers.py   # 控制器层：GraphQL Query/Mutation 薄转发
+│   ├── views/
+│   │   └── x_views.py         # 视图层：认证 / 模型注册 / 任务编排 / 评分图谱
+│   ├── models/
+│   │   └── x_models.py        # 模型层：SQLAlchemy ORM（User/Model/Dataset/EvalTask/EvalResult）
+│   └── schemas/
+│       └── x_schemas.py       # 模式层：GraphQL 类型与 Input 契约
+├── web/                       # 前端 (Next.js 16 + React 19)
+│   ├── src/
+│   │   ├── api/               # GraphQL / HTTP 封装
+│   │   ├── app/f/             # 路由（login / register / forgot-password / home）
+│   │   ├── components/        # 登录/注册/左面板/主题切换等组件
+│   │   ├── views/Home.tsx     # 评测工作台与评分图谱主页
+│   │   └── layout/            # 布局与 Providers
+│   ├── public/
+│   ├── Dockerfile
+│   ├── next.config.ts
+│   └── package.json
+└── ops/                       # 运维编排
+    ├── up.sh                  # 同 Pod 共享网络模式启动
+    ├── down.sh                # 停止并清理
+    ├── Dockerfile.service     # 后端镜像
+    ├── haproxy.cfg            # HAProxy 配置
+    ├── base_config.container.toml  # 容器内插件加载配置
+    ├── .env.example           # 环境变量示例
+    └── init/                  # 数据库初始化脚本
+        ├── 01_init.sql        # 建表
+        └── 02_seed.sql        # 种子数据（账号/模型/数据集/任务）
 ```
 
 ## 8. API 接口文档 (API Documentation)
 
-平台对外暴露 REST API（前缀 `/api/v1`），除豁免路径外均需 `Authorization: Bearer <TOKEN>` 请求头鉴权；列表类接口统一支持 `?page=<页码>&page_size=<每页条数>` 分页参数与 `?status=<状态>` 过滤参数。
+### 端点
 
-<p align="center"><em>表 8-1 API 端点汇总</em></p>
+所有 API 通过统一的 GraphQL 端点暴露，需携带 Bearer Token 鉴权：
 
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| POST | /api/v1/tasks | 创建评测任务（数据集 + 模型 + 算子配置） |
-| GET | /api/v1/tasks | 任务列表（按状态/项目空间过滤） |
-| GET | /api/v1/tasks/{task_id} | 任务详情与状态机当前状态 |
-| POST | /api/v1/tasks/{task_id}/pause | 暂停任务（可断点续跑） |
-| POST | /api/v1/tasks/{task_id}/resume | 恢复/重跑失败分片 |
-| GET | /api/v1/models | 模型注册中心列表（含版本） |
-| POST | /api/v1/models | 注册模型（自研/开源/商用 API） |
-| GET | /api/v1/datasets | 数据集列表与版本快照 |
-| POST | /api/v1/datasets | 上传自建数据集（脱敏入库） |
-| GET | /api/v1/tasks/{task_id}/report | 评测报告（JSON；`?format=pdf` 导出） |
-| GET | /api/v1/graph/score-cost | 评分图谱数据（评分 × 成本散点 + 前沿） |
-| GET | /api/v1/health | 健康检查（豁免鉴权） |
+```text
+POST /b/id_x_009/graphql
+Authorization: Bearer <token>
+Content-Type: application/json
+```
 
-典型异常码：`400` 配置校验失败；`401` 未鉴权/Token 失效；`403` 越权访问项目空间；`404` 资源不存在；`429` 并发/GPU 配额超限。
+### 操作一览
 
-创建评测任务示例（请将 `<BASE_URL>` 与 `<TOKEN>` 替换为实际部署地址与访问凭证）：
+<p align="center"><em>表 8-1 GraphQL 操作汇总</em></p>
+
+| 类型 | 操作 | 说明 | 关键入参 |
+| --- | --- | --- | --- |
+| Query | health | 健康检查 | 无 |
+| Query | models | 模型注册中心列表（可按厂商/接入方式过滤） | vendor, access_type |
+| Query | datasets | 评测数据集列表与版本快照 | 无 |
+| Query | tasks | 评测任务列表（可按状态过滤） | status |
+| Query | taskDetail | 任务详情与状态机当前状态 | task_uid |
+| Query | taskReport | 评测报告（六域得分 + 综合评分 + 成本/时延/吞吐） | task_uid |
+| Query | scoreCostGraph | 评分图谱（评分 × 成本散点 + Pareto 前沿 + 性价比排名） | filter |
+| Mutation | login / register / logout / forgotPassword | 用户认证体系 | 邮箱/密码 |
+| Mutation | registerModel | 注册模型（自研/开源/商用 API） | 模型元数据 |
+| Mutation | createTask | 创建评测任务（数据集 + 模型 + 超参指纹） | model_id, dataset_ids, backend, 超参 |
+| Mutation | pauseTask | 暂停任务（可断点续跑） | task_uid |
+| Mutation | resumeTask | 恢复/重跑任务 | task_uid |
+
+### 示例
+
+创建评测任务：
 
 ```bash
-curl -X POST "<BASE_URL>/api/v1/tasks" \
+curl -X POST http://localhost:8009/b/id_x_009/graphql \
   -H "Authorization: Bearer <TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "qwen2.5-72b-mmlu-regression",
-    "model_version_id": 42,
-    "dataset_snapshot_ids": [101, 103],
-    "operators": ["accuracy", "llm_judge"],
-    "backend": "vllm",
-    "priority": "normal"
+    "query": "mutation($input: CreateTaskInput!) { createTask(input: $input) { success message task { task_uid status progress } } }",
+    "variables": {
+      "input": {
+        "name": "qwen3-max-regression",
+        "modelId": 1,
+        "datasetIds": [1, 2],
+        "backend": "vllm",
+        "temperature": 0.0,
+        "maxTokens": 2048
+      }
+    }
   }'
 ```
 
@@ -263,80 +289,93 @@ curl -X POST "<BASE_URL>/api/v1/tasks" \
 
 ```json
 {
-  "task_id": "t-20260828-0007",
-  "status": "Pending",
-  "fingerprint": {
-    "dataset": "ds@2026.08:snapshot-101",
-    "model": "qwen2.5-72b@v3",
-    "engine": "vllm@0.6",
-    "hyper": {"temperature": 0.0, "max_tokens": 2048}
+  "data": {
+    "createTask": {
+      "success": true,
+      "message": "任务已创建并进入调度队列",
+      "task": {
+        "task_uid": "t-20260913-a1b2",
+        "status": "Pending",
+        "progress": 0
+      }
+    }
   }
 }
+```
+
+查询评分图谱：
+
+```bash
+curl -X POST http://localhost:8009/b/id_x_009/graphql \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { scoreCostGraph { points { name vendor compositeScore costPerTask onFrontier valueRank } frontier { x y } vendors } }"
+  }'
 ```
 
 ## 9. 快速部署 (Quick Deploy)
 
 ### 9.1 环境准备 (Prerequisites)
 
-- Kubernetes ≥ 1.28（含 GPU 节点池，NVIDIA Device Plugin 就绪）
-- kubectl ≥ 1.28、Helm ≥ 3.12
-- 对象存储（MinIO/S3）与 PostgreSQL ≥ 13 可用实例
-- 评测引擎镜像仓库可访问（OpenCompass 运行时镜像）
+- Docker 或 Podman ≥ 4.0（推荐 Podman，同 Pod 共享网络模式）
+- 端口 8009 可用（宿主机映射端口）
+- Git（克隆代码仓）
 
 ### 9.2 安装 (Installation)
 
 ```bash
-# 克隆平台代码仓
-git clone <REPO_URL> eval-platform && cd eval-platform
+# 进入运维目录
+cd x_models/id_x_009/ops
 
-# 配置命名空间与密钥（Vault 注入模型 API Key 等凭证）
-kubectl create namespace eval-platform
+# 生成环境变量配置（务必修改 POSTGRES_PASSWORD）
+cp .env.example .env
 ```
 
 ### 9.3 运行 (Run)
 
 ```bash
-# Helm 一键部署全部服务（API / 引擎 / 调度 / 前端）
-helm upgrade --install eval-platform ./deploy/helm \
-  -n eval-platform \
-  --set global.storageClass=<STORAGE_CLASS> \
-  --set postgresql.dsn=<PG_DSN> \
-  --set minio.endpoint=<S3_ENDPOINT>
+# 一键启动四容器 Pod（haproxy + service + web + db）
+# 镜像不存在时自动构建；已存在则幂等跳过
+./up.sh
 
-# 等待全部 Pod 就绪
-kubectl -n eval-platform wait --for=condition=ready pod --all --timeout=600s
+# 强制重建镜像并启动
+./up.sh --build
 
-# 验证：健康检查返回 200 即部署成功
-kubectl -n eval-platform port-forward svc/eval-api 8000:8000 &
-curl http://127.0.0.1:8000/api/v1/health
+# 停止并删除 Pod 与全部容器（数据卷保留）
+./down.sh
 ```
 
-关键配置（`values.yaml` 覆盖项）：`global.storageClass`（持久卷）、`postgresql.dsn`（元数据库）、`minio.endpoint`（对象存储）、`gpu.pool`（推理节点池标签与配额）、`vault.addr`（密钥服务）。
+部署完成后，通过 HAProxy 统一入口访问：
 
-### 9.4 容器部署 (Kubernetes)
-
-```bash
-# GitOps 方式（ArgoCD）持续部署
-kubectl apply -f deploy/argocd/application.yaml
-
-# 查看服务状态
-kubectl -n eval-platform get pods,svc
-
-# 端口转发本地访问 Web 控制台
-kubectl -n eval-platform port-forward svc/eval-web 8080:80
-# 浏览器访问 http://127.0.0.1:8080
+```text
+http://localhost:8009
 ```
 
-### 9.5 实施路径 (Roadmap)
+演示账号（种子数据，首次建库自动注入）：
 
-<p align="center"><em>表 9-1 分阶段实施路径</em></p>
+```text
+邮箱: demo@id-x-009.local
+密码: demo123456
+```
 
-| 阶段 | 周期 | 目标与交付物 |
-| --- | --- | --- |
-| 阶段一 · 底座搭建 | 第 1–2 月 | K8s 底座、对象存储、模型注册中心、OpenCompass 接入、单模型评测 MVP |
-| 阶段二 · 引擎与数据 | 第 3–4 月 | 推理后端适配、公开数据集仓、任务编排状态机、自动评判与聚合 |
-| 阶段三 · 平台化 | 第 5–6 月 | Web 控制台、多租户权限、自动报告与对比看板、安全合规评测包 |
-| 阶段四 · 规模化 | 第 7–8 月 | GPU 弹性调度、持续回归、可观测告警、业务数据集持续运营 |
+### 9.4 容器部署 (Podman Pod)
+
+四容器同 Pod 共享 network namespace，容器间全部走 127.0.0.1：
+
+```text
+浏览器
+  │  http://<host>:8009
+  ▼
+haproxy  (:8080 in pod)
+  ├─ /b/id_x_009/*  →  service  (127.0.0.1:7000, Litestar + Granian ×3)
+  └─ 其余           →  web      (127.0.0.1:2000, Next.js)
+db                 (127.0.0.1:5432, PostgreSQL 18，数据卷 id_x_009_db)
+```
+
+关键配置（`.env`）：`POSTGRES_PASSWORD`（数据库密码）、`PROJECT_PATH`（容器内项目根路径，务必注入）、`POD_PORT`（宿主机端口，固定 8009）。
+
+配置要点：`Dockerfile.service` 在主 `config/` COPY 之后用 `ops/base_config.container.toml` 覆盖镜像内 `config/base_config.toml`（`[EXTEND].MODELS` 仅指向 `id_x_009`），否则插件不加载 → GraphQL 404 → HAProxy 健康检查失败 → 503。切勿省略该 COPY。
 
 ## 10. 模型评分图谱 (Model Score Graph)
 
@@ -345,8 +384,8 @@ kubectl -n eval-platform port-forward svc/eval-web 8080:80
 ### 10.1 图谱价值
 
 - 模型选型：同屏对比自研、开源与商用 API 模型，快速定位「高评分 · 低成本」甜点区模型。
-- 性价比决策：以每任务推理成本（USD，对数刻度）为横轴、综合评分为纵轴，量化单位成本的能力收益。
-- 版本演进追踪：同一模型多个版本（low / medium / high / max）连点成线，直观呈现迭代收益与成本变化。
+- 性价比决策：以每任务推理成本（USD）为横轴、综合评分为纵轴，量化单位成本的能力收益。
+- 版本演进追踪：同一模型多个版本连点成线，直观呈现迭代收益与成本变化。
 - 基线沉淀：从图谱中一键将优选模型加入对比清单，生成对比报告并沉淀为生产基线。
 
 ### 10.2 图谱样例
@@ -378,19 +417,8 @@ kubectl -n eval-platform port-forward svc/eval-web 8080:80
 
 ### 10.4 平台实现要点
 
-- 数据来源：评分取自指标计算引擎的加权聚合结果，成本由 token 单价与任务实测消耗计算，时延与吞吐取自全量推理日志。
-- 维度可配：横纵轴支持评分、成本、时延、吞吐、上下文长度自由组合，默认配置如下表所示。
-
-<p align="center"><em>表 10-1 模型评分图谱默认维度配置</em></p>
-
-| 配置项 | 默认配置 | 可切换维度 |
-| --- | --- | --- |
-| X 轴（横轴） | 每任务推理成本（USD，对数刻度） | P50 时延 / 生成吞吐 / 上下文长度 |
-| Y 轴（纵轴） | 综合评分（能力域加权聚合） | 单一能力域得分 / 安全专项分 |
-| 气泡颜色 | 厂商 / 模型系列 | 推理后端 / 接入方式（自研·开源·商用API） |
-| 气泡大小 | 固定 | 日均调用量 / 评测频次 |
-| 连线 | 同系列版本演进连线 | 性价比前沿（Pareto Frontier）开关 |
-
-- 血缘可追溯：每个气泡绑定数据集快照、模型版本、推理引擎与超参指纹，点击可回溯原始评测任务。
-- 前端渲染：基于 ECharts / AntV 实现大规模气泡的流畅渲染与缩放，图谱快照可存档复现。
+- 数据来源：评分取自指标计算引擎的加权聚合结果（`EvalResult.composite_score`），成本取自 `cost_per_task`，时延与吞吐取自 `latency_p50` / `throughput`。
+- 前沿计算：服务端按成本升序扫描、综合评分持续刷新的点构成 Pareto 前沿包络（`view_score_cost_graph`），并按「评分 / 成本」给出 `value_rank` 性价比排名。
+- 血缘可追溯：每个气泡绑定 `task_uid`，点击可回溯原始评测任务与 `fingerprint`（数据集快照 + 模型版本 + 引擎 + 超参）。
+- 每模型最新：图谱仅取每个模型的最新一条 `EvalResult`，避免同模型多次评测造成气泡重叠。
 - 权限隔离：按项目空间过滤可见模型，商用 API 成本按租户隔离展示。
