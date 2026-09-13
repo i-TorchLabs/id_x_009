@@ -9,7 +9,6 @@
 ![作者](https://img.shields.io/static/v1?label=作者&message=查锐&color=C3272B&style=for-the-badge&labelColor=555)
 ![组织](https://img.shields.io/static/v1?label=组织&message=SME&color=C3272B&style=for-the-badge&labelColor=555)
 ![引擎](https://img.shields.io/static/v1?label=引擎&message=Litestar%20%2B%20Granian&color=C3272B&style=for-the-badge&labelColor=555)
-![语言](https://img.shields.io/static/v1?label=语言&message=Python%20%2B%20TypeScript&color=C3272B&style=for-the-badge&labelColor=555)
 
 </div>
 
