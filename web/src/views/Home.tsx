@@ -1936,7 +1936,7 @@ export default function Home() {
       {/* ── 登出确认弹层 ── */}
       <Modal state={{ isOpen: showLogoutConfirm, setOpen: setShowLogoutConfirm, open: () => setShowLogoutConfirm(true), close: () => setShowLogoutConfirm(false), toggle: () => setShowLogoutConfirm((prev) => !prev) }}>
         <Modal.Backdrop variant="blur">
-          <Modal.Container placement="center" size="sm">
+          <Modal.Container placement="center" size="sm" className="flex items-center justify-center">
             <Modal.Dialog
               style={{
                 background: card,
@@ -1980,7 +1980,7 @@ export default function Home() {
       {/* ── 新建任务弹层 ── */}
       <Modal state={{ isOpen: showCreateTask, setOpen: setShowCreateTask, open: () => setShowCreateTask(true), close: () => setShowCreateTask(false), toggle: () => setShowCreateTask((prev) => !prev) }}>
         <Modal.Backdrop variant="blur">
-          <Modal.Container placement="center" size="md" scroll="inside">
+          <Modal.Container placement="center" size="md" scroll="inside" className="flex items-center justify-center">
             <Modal.Dialog
               style={{
                 background: card,
@@ -2159,7 +2159,7 @@ export default function Home() {
       {/* ── 报告弹层 ── */}
       <Modal state={{ isOpen: reportTaskUid !== null, setOpen: (open: boolean) => { if (!open) setReportTaskUid(null); }, open: () => {}, close: () => setReportTaskUid(null), toggle: () => setReportTaskUid((prev) => (prev ? null : prev)) }}>
         <Modal.Backdrop variant="blur">
-          <Modal.Container placement="center" size="md" scroll="inside">
+          <Modal.Container placement="center" size="md" scroll="inside" className="flex items-center justify-center">
             <Modal.Dialog
               style={{
                 background: card,
@@ -2284,7 +2284,7 @@ export default function Home() {
       {/* ── 模型对比弹层 ── */}
       <Modal state={{ isOpen: showCompare, setOpen: setShowCompare, open: () => setShowCompare(true), close: () => setShowCompare(false), toggle: () => setShowCompare((prev) => !prev) }}>
         <Modal.Backdrop variant="blur">
-          <Modal.Container placement="center" size="lg" scroll="inside">
+          <Modal.Container placement="center" size="lg" scroll="inside" className="flex items-center justify-center">
             <Modal.Dialog
               style={{
                 background: card,
@@ -2442,7 +2442,7 @@ export default function Home() {
       {/* ── 注册模型弹层 ── */}
       <Modal state={{ isOpen: showRegisterModel, setOpen: setShowRegisterModel, open: () => setShowRegisterModel(true), close: () => setShowRegisterModel(false), toggle: () => setShowRegisterModel((prev) => !prev) }}>
         <Modal.Backdrop variant="blur">
-          <Modal.Container placement="center" size="md" scroll="inside">
+          <Modal.Container placement="center" size="md" scroll="inside" className="flex items-center justify-center">
             <Modal.Dialog
               style={{
                 background: card,
