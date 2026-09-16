@@ -149,6 +149,34 @@ body {
     scrollbar-color: #d1d5db transparent;
 }
 
+/* ── Data table polish ── */
+/* 行 hover：中性灰，双主题通用，营造数据仪表盘的精密反馈感 */
+[data-row] {
+    transition: background-color 0.15s ease;
+}
+
+[data-row]:hover {
+    background-color: rgba(127, 127, 127, 0.07);
+}
+
+/* 表格数字等宽对齐，提升数据可读性与专业感 */
+table,
+pre,
+code {
+    font-variant-numeric: tabular-nums;
+}
+
+/* 卡片悬浮抬升：克制的 2px 位移，强化材质悬浮感 */
+.lift-card {
+    transition:
+        transform 0.25s cubic-bezier(0.25, 0.4, 0.25, 1),
+        box-shadow 0.25s cubic-bezier(0.25, 0.4, 0.25, 1);
+}
+
+.lift-card:hover {
+    transform: translateY(-2px);
+}
+
 /* ── Responsive ── */
 
 @media (max-width: 900px) {

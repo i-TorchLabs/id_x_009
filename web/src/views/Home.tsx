@@ -280,6 +280,11 @@ export default function Home() {
   const t = getTokens(isDark);
   const { bg, fg, fg2, fg3, fg4, card, inputBg, inputBorder, divider, shadow, navBg, accent, accentFg, badgeBg, error, errorBg, errorBorder } = t;
 
+  // 卡片组合阴影：漫射投影 + 顶缘 1px 内高光，模拟玻璃/金属材质的受光边，
+  // 保持 UI.md 单一柔和投影哲学的同时显著提升材质高级感。
+  const cardHighlight = isDark ? "inset 0 1px 0 rgba(255,255,255,0.07)" : "inset 0 1px 0 rgba(255,255,255,0.9)";
+  const cardShadow = `${shadow}, ${cardHighlight}`;
+
   // ── 全局状态 ──
   const [activeTab, setActiveTab] = useState<TabKey>("graph");
   const [userEmail, setUserEmail] = useState("");
@@ -326,9 +331,27 @@ export default function Home() {
   const [hoverPoint, setHoverPoint] = useState<{ point: ScorePoint; cx: number; cy: number } | null>(null);
   const [compareList, setCompareList] = useState<ScorePoint[]>([]);
   const [compareNotice, setCompareNotice] = useState("");
+  const [showCompare, setShowCompare] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const canvasResizeRef = useRef<ResizeObserver | null>(null);
   const [canvasSize, setCanvasSize] = useState({ w: 720, h: 480 });
+
+  // 回调 ref：画布 div 挂载（含加载态切换后）即绑定 ResizeObserver，
+  // 避免 useEffect 在 ref 为 null 的加载态执行后不再重跑、尺寸停留在初始值的问题。
+  const observeCanvas = useCallback((el: HTMLDivElement | null) => {
+    if (canvasResizeRef.current) {
+      canvasResizeRef.current.disconnect();
+      canvasResizeRef.current = null;
+    }
+    if (el) {
+      const ro = new ResizeObserver((entries) => {
+        const rect = entries[0].contentRect;
+        setCanvasSize({ w: Math.max(320, rect.width), h: Math.max(320, rect.height) });
+      });
+      ro.observe(el);
+      canvasResizeRef.current = ro;
+    }
+  }, []);
 
   const loadGraph = useCallback(async (filter?: ScoreGraphFilterInput) => {
     setGraphLoading(true);
@@ -350,15 +373,13 @@ export default function Home() {
   }, [activeTab, loadGraph]);
 
   useEffect(() => {
-    const el = canvasWrapRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const rect = entries[0].contentRect;
-      setCanvasSize({ w: Math.max(320, rect.width), h: Math.max(320, rect.height) });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [activeTab]);
+    return () => {
+      if (canvasResizeRef.current) {
+        canvasResizeRef.current.disconnect();
+        canvasResizeRef.current = null;
+      }
+    };
+  }, []);
 
   const applyFilter = useCallback(() => {
     const filter: ScoreGraphFilterInput = {};
@@ -994,11 +1015,11 @@ export default function Home() {
         </>
       )}
 
-      {/* 对比清单 */}
+      {/* 对比清单入口：独立弹窗承载对比内容 */}
       {compareList.length > 0 && (
         <div style={{ borderTop: `1px solid ${divider}`, paddingTop: "16px" }}>
           <FieldLabel color={fg3}>对比清单 ({compareList.length}/4)</FieldLabel>
-          <div className="flex flex-wrap gap-1.5" style={{ marginBottom: compareList.length >= 2 ? "12px" : 0 }}>
+          <div className="flex flex-wrap gap-1.5" style={{ marginBottom: "12px" }}>
             {compareList.map((p) => (
               <span
                 key={p.modelId}
@@ -1038,62 +1059,21 @@ export default function Home() {
               </span>
             ))}
           </div>
-          {compareNotice && (
-            <div style={{ fontFamily: SF_TEXT, fontSize: "12px", color: error, marginBottom: "8px" }}>{compareNotice}</div>
-          )}
-
-          {compareList.length >= 2 && (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ borderCollapse: "collapse", width: "100%", fontFamily: SF_TEXT, fontSize: "12px" }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "left", color: fg3, fontWeight: 600, padding: "6px 8px 6px 0", borderBottom: `1px solid ${divider}`, letterSpacing: "-0.1px" }}>
-                      指标
-                    </th>
-                    {compareList.map((p) => (
-                      <th
-                        key={p.modelId}
-                        style={{ textAlign: "right", color: fg, fontWeight: 600, padding: "6px 0 6px 8px", borderBottom: `1px solid ${divider}`, letterSpacing: "-0.2px", maxWidth: "90px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                      >
-                        {p.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {compareDomains.map((domain) => (
-                    <tr key={domain}>
-                      <td style={{ color: fg2, padding: "6px 8px 6px 0", borderBottom: `1px solid ${divider}`, letterSpacing: "-0.1px" }}>
-                        {domain}
-                      </td>
-                      {compareList.map((p) => {
-                        const d = p.domainScores.find((x) => x.domain === domain);
-                        return (
-                          <td key={p.modelId} style={{ textAlign: "right", color: fg, fontFamily: SF_MONO, padding: "6px 0 6px 8px", borderBottom: `1px solid ${divider}` }}>
-                            {d ? d.score.toFixed(1) : "—"}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                  <tr>
-                    <td style={{ color: fg, fontWeight: 600, padding: "6px 8px 6px 0", borderBottom: `1px solid ${divider}`, letterSpacing: "-0.1px" }}>综合评分</td>
-                    {compareList.map((p) => (
-                      <td key={p.modelId} style={{ textAlign: "right", color: fg, fontWeight: 600, fontFamily: SF_MONO, padding: "6px 0 6px 8px", borderBottom: `1px solid ${divider}` }}>
-                        {p.compositeScore.toFixed(1)}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td style={{ color: fg2, padding: "6px 0 0 0", letterSpacing: "-0.1px" }}>成本/任务</td>
-                    {compareList.map((p) => (
-                      <td key={p.modelId} style={{ textAlign: "right", color: fg, fontFamily: SF_MONO, padding: "6px 0 0 8px" }}>
-                        {formatCost(p.costPerTask)}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
+          <PillButton
+            primary
+            fg={fg}
+            fg3={fg3}
+            accent={accent}
+            accentFg={accentFg}
+            divider={divider}
+            onClick={() => setShowCompare(true)}
+            disabled={compareList.length < 2}
+          >
+            查看对比
+          </PillButton>
+          {compareList.length < 2 && (
+            <div style={{ fontFamily: SF_TEXT, fontSize: "12px", color: fg4, marginTop: "8px", letterSpacing: "-0.1px" }}>
+              至少选择 2 个模型后可查看对比
             </div>
           )}
         </div>
@@ -1106,7 +1086,36 @@ export default function Home() {
   // ──────────────────────────────────────────────
 
   const canvasPanel = (
-    <div ref={canvasWrapRef} style={{ position: "relative", width: "100%", height: "100%", minHeight: "420px" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", minHeight: "420px" }}>
+      {/* 图例条：置于画布上方独立区域，不再浮层遮挡图表内容 */}
+      {graphData.vendors.length > 0 && (
+        <div
+          className="flex flex-wrap items-center"
+          style={{
+            gap: "6px 14px",
+            padding: "2px 4px 10px",
+            borderBottom: `1px solid ${divider}`,
+            marginBottom: "8px",
+            flexShrink: 0,
+          }}
+        >
+          {[...graphData.vendors].sort().map((v) => (
+            <span key={v} className="inline-flex items-center gap-1.5">
+              <span
+                style={{
+                  display: "inline-block",
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  background: vendorColor(v, graphData.vendors),
+                }}
+              />
+              <span style={{ fontFamily: SF_TEXT, fontSize: "11px", color: fg2, letterSpacing: "-0.1px" }}>{v}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      <div ref={observeCanvas} style={{ position: "relative", width: "100%", flex: 1, minHeight: 0 }}>
       {graphData.points.length === 0 && !graphLoading ? (
         <div
           style={{
@@ -1220,13 +1229,16 @@ export default function Home() {
           {/* Pareto 前沿 */}
           {geom.frontierPts.length >= 2 && (
             <>
-              <polyline
+              <motion.polyline
                 points={geom.frontierPts.map((p) => `${p.x},${p.y}`).join(" ")}
                 fill="none"
                 stroke={PARETO_COLOR}
                 strokeOpacity={PARETO_STROKE_OPACITY}
                 strokeWidth={1.5}
                 strokeDasharray="6 4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.3, ease }}
               />
               <text
                 x={geom.frontierPts[geom.frontierPts.length - 1].x + 6}
@@ -1238,8 +1250,50 @@ export default function Home() {
             </>
           )}
 
+          {/* 悬停十字准线：精密仪器感，指向坐标轴读数 */}
+          {hoverPoint && (
+            <g style={{ pointerEvents: "none" }}>
+              <line
+                x1={geom.ML}
+                x2={hoverPoint.cx}
+                y1={hoverPoint.cy}
+                y2={hoverPoint.cy}
+                stroke={fg}
+                strokeOpacity={0.18}
+                strokeWidth={1}
+                strokeDasharray="3 3"
+              />
+              <line
+                x1={hoverPoint.cx}
+                x2={hoverPoint.cx}
+                y1={hoverPoint.cy}
+                y2={geom.H - geom.MB}
+                stroke={fg}
+                strokeOpacity={0.18}
+                strokeWidth={1}
+                strokeDasharray="3 3"
+              />
+              <text
+                x={geom.ML - 8}
+                y={hoverPoint.cy + 3}
+                textAnchor="end"
+                style={{ fontFamily: SF_MONO, fontSize: "10px", fill: fg, fontWeight: 600 }}
+              >
+                {hoverPoint.point.compositeScore.toFixed(1)}
+              </text>
+              <text
+                x={hoverPoint.cx}
+                y={geom.H - geom.MB + 18}
+                textAnchor="middle"
+                style={{ fontFamily: SF_MONO, fontSize: "10px", fill: fg, fontWeight: 600 }}
+              >
+                {formatCost(hoverPoint.point.costPerTask)}
+              </text>
+            </g>
+          )}
+
           {/* 气泡 */}
-          {graphData.points.map((p) => {
+          {graphData.points.map((p, idx) => {
             const cx = geom.toX(p.costPerTask);
             const cy = geom.toY(p.compositeScore);
             const color = vendorColor(p.vendor, graphData.vendors);
@@ -1247,23 +1301,39 @@ export default function Home() {
             const isSelected = selectedPoint?.modelId === p.modelId;
             const r = isHovered ? 12 : 9;
             return (
-              <circle
-                key={p.modelId}
-                cx={cx}
-                cy={cy}
-                r={r}
-                fill={color}
-                fillOpacity={BUBBLE_FILL_OPACITY}
-                stroke={p.onFrontier || isSelected ? accent : "none"}
-                strokeWidth={p.onFrontier || isSelected ? 2 : 0}
-                style={{
-                  cursor: "pointer",
-                  transition: "r 0.2s cubic-bezier(0.25,0.4,0.25,1)",
-                }}
-                onMouseEnter={() => setHoverPoint({ point: p, cx, cy })}
-                onMouseLeave={() => setHoverPoint(null)}
-                onClick={() => setSelectedPoint(p)}
-              />
+              <g key={p.modelId}>
+                {/* 悬停/选中光环：柔和辉光提升聚焦感 */}
+                {(isHovered || isSelected) && (
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={r + 9}
+                    fill={color}
+                    fillOpacity={isHovered ? 0.22 : 0.14}
+                    style={{ pointerEvents: "none" }}
+                  />
+                )}
+                <motion.circle
+                  cx={cx}
+                  cy={cy}
+                  r={r}
+                  fill={color}
+                  fillOpacity={BUBBLE_FILL_OPACITY}
+                  stroke={p.onFrontier || isSelected ? accent : "none"}
+                  strokeWidth={p.onFrontier || isSelected ? 2 : 0}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.15 + idx * 0.035, ease }}
+                  style={{
+                    cursor: "pointer",
+                    transformOrigin: `${cx}px ${cy}px`,
+                    transition: "r 0.2s cubic-bezier(0.25,0.4,0.25,1)",
+                  }}
+                  onMouseEnter={() => setHoverPoint({ point: p, cx, cy })}
+                  onMouseLeave={() => setHoverPoint(null)}
+                  onClick={() => setSelectedPoint(p)}
+                />
+              </g>
             );
           })}
         </svg>
@@ -1279,7 +1349,7 @@ export default function Home() {
             background: card,
             border: `1px solid ${divider}`,
             borderRadius: "12px",
-            boxShadow: shadow,
+            boxShadow: cardShadow,
             padding: "10px 14px",
             pointerEvents: "none",
             zIndex: 10,
@@ -1307,36 +1377,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* 图例（厂商透明度阶梯） */}
-      {graphData.vendors.length > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            right: "12px",
-            top: "12px",
-            background: card,
-            border: `1px solid ${divider}`,
-            borderRadius: "10px",
-            padding: "8px 12px",
-            boxShadow: shadow,
-          }}
-        >
-          {[...graphData.vendors].sort().map((v) => (
-            <div key={v} className="flex items-center gap-2" style={{ marginBottom: "3px" }}>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: "10px",
-                  height: "10px",
-                  borderRadius: "50%",
-                  background: vendorColor(v, graphData.vendors),
-                }}
-              />
-              <span style={{ fontFamily: SF_TEXT, fontSize: "11px", color: fg2, letterSpacing: "-0.1px" }}>{v}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 
@@ -1451,7 +1492,7 @@ export default function Home() {
             </thead>
             <tbody>
               {tasks.map((tk) => (
-                <tr key={tk.taskUid}>
+                <tr key={tk.taskUid} data-row>
                   <td style={{ padding: "10px 12px 10px 0", borderBottom: `1px solid ${divider}`, fontFamily: SF_MONO, fontSize: "11px", color: fg3, whiteSpace: "nowrap" }}>
                     {tk.taskUid.slice(0, 8)}
                   </td>
@@ -1574,7 +1615,7 @@ export default function Home() {
             </thead>
             <tbody>
               {models.map((m) => (
-                <tr key={m.id}>
+                <tr key={m.id} data-row>
                   <td style={{ padding: "10px 12px 10px 0", borderBottom: `1px solid ${divider}`, color: fg, fontWeight: 500, letterSpacing: "-0.1px", whiteSpace: "nowrap" }}>
                     {m.name}
                   </td>
@@ -1637,7 +1678,7 @@ export default function Home() {
           }}
         >
           {datasets.map((d) => (
-            <Card key={d.id} bg={card} shadow={shadow} border={`1px solid ${divider}`} style={{ padding: 0 }}>
+            <Card key={d.id} className="lift-card" bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0 }}>
               <div style={{ padding: "20px 24px" }}>
                 <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: "6px" }}>
                   <span style={{ fontFamily: SF_DISPLAY, fontSize: "17px", fontWeight: 600, color: fg, letterSpacing: "-0.34px" }}>
@@ -1722,12 +1763,13 @@ export default function Home() {
                   onClick={() => setActiveTab(tab.key)}
                   className="transition-colors duration-200"
                   style={{
+                    position: "relative",
                     fontFamily: SF_TEXT,
                     fontSize: "14px",
                     fontWeight: active ? 600 : 400,
                     letterSpacing: "-0.15px",
                     color: active ? fg : fg3,
-                    background: active ? badgeBg : "transparent",
+                    background: "transparent",
                     border: "none",
                     borderRadius: "980px",
                     padding: "6px 14px",
@@ -1736,7 +1778,20 @@ export default function Home() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {tab.label}
+                  {active && (
+                    <motion.span
+                      layoutId="nav-tab-pill"
+                      transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                      style={{
+                        position: "absolute",
+                        inset: "4px 0",
+                        background: badgeBg,
+                        borderRadius: "980px",
+                        boxShadow: isDark ? "inset 0 1px 0 rgba(255,255,255,0.08)" : "inset 0 1px 0 rgba(255,255,255,0.7)",
+                      }}
+                    />
+                  )}
+                  <span style={{ position: "relative" }}>{tab.label}</span>
                 </button>
               );
             })}
@@ -1790,10 +1845,10 @@ export default function Home() {
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease }}
+            initial={{ opacity: 0, y: 10, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.995 }}
+            transition={{ duration: 0.35, ease }}
             style={{ height: "100%" }}
           >
             {activeTab === "graph" && (
@@ -1811,21 +1866,24 @@ export default function Home() {
                       display: "grid",
                       gridTemplateColumns: isNarrow ? "1fr" : "220px 1fr 300px",
                       gap: "16px",
-                      alignItems: "start",
+                      // 桌面端三栏等高：统一行高 = 视口高 - 导航 56px - 上下内边距 40px；
+                      // 窄屏保持自适应堆叠。
+                      alignItems: isNarrow ? "start" : "stretch",
+                      height: isNarrow ? undefined : "calc(100dvh - 96px)",
                     }}
                   >
                     {/* 左筛选 */}
                     {(!isNarrow || showFilterPanel) && (
-                      <Card bg={card} shadow={shadow} border={`1px solid ${divider}`} style={{ padding: 0 }}>
-                        <div style={{ padding: "20px" }}>{filterPanel}</div>
+                      <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0, height: isNarrow ? undefined : "100%", minHeight: 0 }}>
+                        <div style={{ padding: "20px", height: isNarrow ? undefined : "calc(100dvh - 152px)", boxSizing: "border-box", overflowY: "auto" }}>{filterPanel}</div>
                       </Card>
                     )}
 
                     {/* 中画布 */}
-                    <Card bg={card} shadow={shadow} border={`1px solid ${divider}`} style={{ padding: 0, minHeight: "480px" }}>
-                      <div style={{ padding: "12px", height: "100%", minHeight: "480px", position: "relative" }}>
+                    <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0, height: isNarrow ? undefined : "100%", minHeight: isNarrow ? "480px" : 0 }}>
+                      <div style={{ padding: "12px", height: isNarrow ? undefined : "calc(100dvh - 152px)", boxSizing: "border-box", minHeight: isNarrow ? "480px" : 0, position: "relative" }}>
                         {graphLoading && graphData.points.length === 0 ? (
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "440px" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: "440px" }}>
                             <LoadingDots color="bg-current" />
                           </div>
                         ) : (
@@ -1838,8 +1896,8 @@ export default function Home() {
                     </Card>
 
                     {/* 右详情 */}
-                    <Card bg={card} shadow={shadow} border={`1px solid ${divider}`} style={{ padding: 0 }}>
-                      <div style={{ padding: "20px" }}>{detailPanel}</div>
+                    <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0, height: isNarrow ? undefined : "100%", minHeight: 0 }}>
+                        <div style={{ padding: "20px", height: isNarrow ? undefined : "calc(100dvh - 152px)", boxSizing: "border-box", overflowY: "auto" }}>{detailPanel}</div>
                     </Card>
                   </div>
                 </div>
@@ -1849,7 +1907,7 @@ export default function Home() {
             {activeTab === "tasks" && (
               <div className="h-full overflow-y-auto">
                 <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-                  <Card bg={card} shadow={shadow} border={`1px solid ${divider}`} style={{ padding: 0 }}>
+                  <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0 }}>
                     <div style={{ padding: "24px" }}>{tasksPanel}</div>
                   </Card>
                 </div>
@@ -1859,7 +1917,7 @@ export default function Home() {
             {activeTab === "models" && (
               <div className="h-full overflow-y-auto">
                 <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-                  <Card bg={card} shadow={shadow} border={`1px solid ${divider}`} style={{ padding: 0 }}>
+                  <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0 }}>
                     <div style={{ padding: "24px" }}>{modelsPanel}</div>
                   </Card>
                 </div>
@@ -1883,8 +1941,9 @@ export default function Home() {
               style={{
                 background: card,
                 borderRadius: "20px",
-                boxShadow: shadow,
+                boxShadow: cardShadow,
                 border: `1px solid ${divider}`,
+                padding: "7px",
               }}
             >
               <Modal.Header>
@@ -1926,8 +1985,9 @@ export default function Home() {
               style={{
                 background: card,
                 borderRadius: "20px",
-                boxShadow: shadow,
+                boxShadow: cardShadow,
                 border: `1px solid ${divider}`,
+                padding: "7px",
               }}
             >
               <Modal.Header style={{ marginBottom: "16px" }}>
@@ -2104,8 +2164,9 @@ export default function Home() {
               style={{
                 background: card,
                 borderRadius: "20px",
-                boxShadow: shadow,
+                boxShadow: cardShadow,
                 border: `1px solid ${divider}`,
+                padding: "7px",
               }}
             >
               <Modal.Header style={{ marginBottom: "16px" }}>
@@ -2220,6 +2281,164 @@ export default function Home() {
         </Modal.Backdrop>
       </Modal>
 
+      {/* ── 模型对比弹层 ── */}
+      <Modal state={{ isOpen: showCompare, setOpen: setShowCompare, open: () => setShowCompare(true), close: () => setShowCompare(false), toggle: () => setShowCompare((prev) => !prev) }}>
+        <Modal.Backdrop variant="blur">
+          <Modal.Container placement="center" size="lg" scroll="inside">
+            <Modal.Dialog
+              style={{
+                background: card,
+                borderRadius: "20px",
+                boxShadow: cardShadow,
+                border: `1px solid ${divider}`,
+                padding: "7px",
+              }}
+            >
+              <Modal.Header style={{ marginBottom: "16px" }}>
+                <Modal.Heading
+                  style={{
+                    fontFamily: SF_DISPLAY,
+                    fontSize: "20px",
+                    fontWeight: 600,
+                    color: fg,
+                    letterSpacing: "-0.4px",
+                  }}
+                >
+                  模型对比 ({compareList.length}/4)
+                </Modal.Heading>
+              </Modal.Header>
+              <Modal.Body style={{ padding: 0 }}>
+                {/* 已选模型 chips */}
+                <div className="flex flex-wrap gap-1.5" style={{ marginBottom: "16px" }}>
+                  {compareList.map((p) => (
+                    <span
+                      key={p.modelId}
+                      className="inline-flex items-center gap-1.5"
+                      style={{
+                        fontFamily: SF_TEXT,
+                        fontSize: "12px",
+                        color: fg,
+                        background: badgeBg,
+                        borderRadius: "980px",
+                        padding: "4px 6px 4px 12px",
+                        letterSpacing: "-0.1px",
+                      }}
+                    >
+                      {p.name}
+                      <button
+                        onClick={() => removeFromCompare(p.modelId)}
+                        aria-label={`移除 ${p.name}`}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: fg3,
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          lineHeight: 1,
+                          padding: "2px 6px",
+                          borderRadius: "50%",
+                          minWidth: "20px",
+                          minHeight: "20px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                {compareNotice && (
+                  <div style={{ fontFamily: SF_TEXT, fontSize: "12px", color: error, marginBottom: "12px" }}>{compareNotice}</div>
+                )}
+
+                {compareList.length >= 2 ? (
+                  <div
+                    style={{
+                      background: inputBg,
+                      border: `1px solid ${divider}`,
+                      borderRadius: "12px",
+                      padding: "7px",
+                    }}
+                  >
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ borderCollapse: "collapse", width: "100%", fontFamily: SF_TEXT, fontSize: "13px" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: "left", color: fg3, fontWeight: 600, padding: "8px 12px 8px 0", borderBottom: `1px solid ${divider}`, fontSize: "12px", letterSpacing: "0.02em", whiteSpace: "nowrap" }}>
+                            指标
+                          </th>
+                          {compareList.map((p) => (
+                            <th
+                              key={p.modelId}
+                              style={{ textAlign: "right", color: fg, fontWeight: 600, padding: "8px 0 8px 12px", borderBottom: `1px solid ${divider}`, letterSpacing: "-0.2px", maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                            >
+                              {p.name}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {compareDomains.map((domain) => (
+                          <tr key={domain} data-row>
+                            <td style={{ color: fg2, padding: "8px 12px 8px 0", borderBottom: `1px solid ${divider}`, letterSpacing: "-0.1px", whiteSpace: "nowrap" }}>
+                              {domain}
+                            </td>
+                            {compareList.map((p) => {
+                              const d = p.domainScores.find((x) => x.domain === domain);
+                              return (
+                                <td key={p.modelId} style={{ textAlign: "right", color: fg, fontFamily: SF_MONO, fontSize: "12px", padding: "8px 0 8px 12px", borderBottom: `1px solid ${divider}` }}>
+                                  {d ? d.score.toFixed(1) : "—"}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                        <tr data-row>
+                          <td style={{ color: fg, fontWeight: 600, padding: "8px 12px 8px 0", borderBottom: `1px solid ${divider}`, letterSpacing: "-0.1px" }}>综合评分</td>
+                          {compareList.map((p) => (
+                            <td key={p.modelId} style={{ textAlign: "right", color: fg, fontWeight: 600, fontFamily: SF_MONO, fontSize: "12px", padding: "8px 0 8px 12px", borderBottom: `1px solid ${divider}` }}>
+                              {p.compositeScore.toFixed(1)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr data-row>
+                          <td style={{ color: fg2, padding: "8px 12px 0 0", letterSpacing: "-0.1px" }}>成本/任务</td>
+                          {compareList.map((p) => (
+                            <td key={p.modelId} style={{ textAlign: "right", color: fg, fontFamily: SF_MONO, fontSize: "12px", padding: "8px 0 0 12px" }}>
+                              {formatCost(p.costPerTask)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr data-row>
+                          <td style={{ color: fg2, padding: "8px 12px 0 0", letterSpacing: "-0.1px" }}>性价比排名</td>
+                          {compareList.map((p) => (
+                            <td key={p.modelId} style={{ textAlign: "right", color: fg, fontFamily: SF_MONO, fontSize: "12px", padding: "8px 0 0 12px" }}>
+                              #{p.valueRank}
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontFamily: SF_TEXT, fontSize: "14px", color: fg3, textAlign: "center", padding: "32px 0", letterSpacing: "-0.15px" }}>
+                    至少选择 2 个模型后进行对比
+                  </div>
+                )}
+              </Modal.Body>
+              <Modal.Footer style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
+                <PillButton fg={fg} fg3={fg3} accent={accent} accentFg={accentFg} divider={divider} onClick={() => setShowCompare(false)}>
+                  关闭
+                </PillButton>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+
       {/* ── 注册模型弹层 ── */}
       <Modal state={{ isOpen: showRegisterModel, setOpen: setShowRegisterModel, open: () => setShowRegisterModel(true), close: () => setShowRegisterModel(false), toggle: () => setShowRegisterModel((prev) => !prev) }}>
         <Modal.Backdrop variant="blur">
@@ -2228,8 +2447,9 @@ export default function Home() {
               style={{
                 background: card,
                 borderRadius: "20px",
-                boxShadow: shadow,
+                boxShadow: cardShadow,
                 border: `1px solid ${divider}`,
+                padding: "7px",
               }}
             >
               <Modal.Header style={{ marginBottom: "16px" }}>
