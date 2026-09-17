@@ -1853,7 +1853,7 @@ export default function Home() {
           >
             {activeTab === "graph" && (
               <div className="h-full overflow-y-auto">
-                <div style={{ padding: "20px", maxWidth: "1440px", margin: "0 auto" }}>
+                <div style={{ padding: "12px" }}>
                   {isNarrow && (
                     <div style={{ marginBottom: "12px" }}>
                       <PillButton small fg={fg} fg3={fg3} accent={accent} accentFg={accentFg} divider={divider} onClick={() => setShowFilterPanel((v) => !v)}>
@@ -1866,22 +1866,22 @@ export default function Home() {
                       display: "grid",
                       gridTemplateColumns: isNarrow ? "1fr" : "220px 1fr 300px",
                       gap: "16px",
-                      // 桌面端三栏等高：统一行高 = 视口高 - 导航 56px - 上下内边距 40px；
+                      // 桌面端三栏等高：统一行高 = 视口高 - 导航 56px - 上下内边距 24px；
                       // 窄屏保持自适应堆叠。
                       alignItems: isNarrow ? "start" : "stretch",
-                      height: isNarrow ? undefined : "calc(100dvh - 96px)",
+                      height: isNarrow ? undefined : "calc(100dvh - 80px)",
                     }}
                   >
                     {/* 左筛选 */}
                     {(!isNarrow || showFilterPanel) && (
                       <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0, height: isNarrow ? undefined : "100%", minHeight: 0 }}>
-                        <div style={{ padding: "20px", height: isNarrow ? undefined : "calc(100dvh - 152px)", boxSizing: "border-box", overflowY: "auto" }}>{filterPanel}</div>
+                        <div style={{ padding: "20px", height: isNarrow ? undefined : "100%", boxSizing: "border-box", overflowY: "auto" }}>{filterPanel}</div>
                       </Card>
                     )}
 
                     {/* 中画布 */}
                     <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0, height: isNarrow ? undefined : "100%", minHeight: isNarrow ? "480px" : 0 }}>
-                      <div style={{ padding: "12px", height: isNarrow ? undefined : "calc(100dvh - 152px)", boxSizing: "border-box", minHeight: isNarrow ? "480px" : 0, position: "relative" }}>
+                      <div style={{ padding: "12px", height: isNarrow ? undefined : "100%", boxSizing: "border-box", minHeight: isNarrow ? "480px" : 0, position: "relative" }}>
                         {graphLoading && graphData.points.length === 0 ? (
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: "440px" }}>
                             <LoadingDots color="bg-current" />
@@ -1897,7 +1897,7 @@ export default function Home() {
 
                     {/* 右详情 */}
                     <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0, height: isNarrow ? undefined : "100%", minHeight: 0 }}>
-                        <div style={{ padding: "20px", height: isNarrow ? undefined : "calc(100dvh - 152px)", boxSizing: "border-box", overflowY: "auto" }}>{detailPanel}</div>
+                        <div style={{ padding: "20px", height: isNarrow ? undefined : "100%", boxSizing: "border-box", overflowY: "auto" }}>{detailPanel}</div>
                     </Card>
                   </div>
                 </div>
