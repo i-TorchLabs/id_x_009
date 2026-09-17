@@ -808,93 +808,106 @@ export default function Home() {
   // ──────────────────────────────────────────────
 
   const filterPanel = (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <div>
-        <FieldLabel color={fg3}>厂商</FieldLabel>
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          {graphData.vendors.length === 0 && (
-            <span style={{ fontFamily: SF_TEXT, fontSize: "12px", color: fg4 }}>加载中…</span>
-          )}
-          {[...graphData.vendors].sort().map((v) => (
-            <label
-              key={v}
-              className="flex items-center gap-2 cursor-pointer"
-              style={{ fontFamily: SF_TEXT, fontSize: "13px", color: fg2, minHeight: "28px" }}
-            >
-              <input
-                type="checkbox"
-                checked={filterVendors.includes(v)}
-                onChange={(e) => {
-                  if (e.target.checked) setFilterVendors((prev) => [...prev, v]);
-                  else setFilterVendors((prev) => prev.filter((x) => x !== v));
-                }}
-                style={{ accentColor: fg, width: "14px", height: "14px", cursor: "pointer" }}
-              />
-              {v}
-            </label>
-          ))}
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+      {/* 可滚动的筛选条件区域 */}
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0, display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div>
+          <FieldLabel color={fg3}>厂商</FieldLabel>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {graphData.vendors.length === 0 && (
+              <span style={{ fontFamily: SF_TEXT, fontSize: "12px", color: fg4 }}>加载中…</span>
+            )}
+            {[...graphData.vendors].sort().map((v) => (
+              <label
+                key={v}
+                className="flex items-center gap-2 cursor-pointer"
+                style={{ fontFamily: SF_TEXT, fontSize: "13px", color: fg2, minHeight: "28px" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={filterVendors.includes(v)}
+                  onChange={(e) => {
+                    if (e.target.checked) setFilterVendors((prev) => [...prev, v]);
+                    else setFilterVendors((prev) => prev.filter((x) => x !== v));
+                  }}
+                  style={{ accentColor: fg, width: "14px", height: "14px", cursor: "pointer" }}
+                />
+                {v}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <FieldLabel color={fg3}>接入方式</FieldLabel>
+          <select
+            value={filterAccessType}
+            onChange={(e) => setFilterAccessType(e.target.value)}
+            style={{ ...inputBaseStyle(fg, inputBg, inputBorder), appearance: "none" }}
+          >
+            <option value="">全部</option>
+            {ACCESS_TYPES.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <FieldLabel color={fg3}>推理后端</FieldLabel>
+          <select
+            value={filterBackend}
+            onChange={(e) => setFilterBackend(e.target.value)}
+            style={{ ...inputBaseStyle(fg, inputBg, inputBorder), appearance: "none" }}
+          >
+            <option value="">全部</option>
+            {BACKENDS.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <FieldLabel color={fg3}>最低评分</FieldLabel>
+          <input
+            type="number"
+            value={filterMinScore}
+            onChange={(e) => setFilterMinScore(e.target.value)}
+            placeholder="如 60"
+            min={0}
+            max={100}
+            style={inputBaseStyle(fg, inputBg, inputBorder)}
+          />
+        </div>
+
+        <div>
+          <FieldLabel color={fg3}>最高成本 (USD)</FieldLabel>
+          <input
+            type="number"
+            value={filterMaxCost}
+            onChange={(e) => setFilterMaxCost(e.target.value)}
+            placeholder="如 10"
+            min={0}
+            step="any"
+            style={inputBaseStyle(fg, inputBg, inputBorder)}
+          />
         </div>
       </div>
 
-      <div>
-        <FieldLabel color={fg3}>接入方式</FieldLabel>
-        <select
-          value={filterAccessType}
-          onChange={(e) => setFilterAccessType(e.target.value)}
-          style={{ ...inputBaseStyle(fg, inputBg, inputBorder), appearance: "none" }}
-        >
-          <option value="">全部</option>
-          {ACCESS_TYPES.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <FieldLabel color={fg3}>推理后端</FieldLabel>
-        <select
-          value={filterBackend}
-          onChange={(e) => setFilterBackend(e.target.value)}
-          style={{ ...inputBaseStyle(fg, inputBg, inputBorder), appearance: "none" }}
-        >
-          <option value="">全部</option>
-          {BACKENDS.map((b) => (
-            <option key={b} value={b}>
-              {b}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <FieldLabel color={fg3}>最低评分</FieldLabel>
-        <input
-          type="number"
-          value={filterMinScore}
-          onChange={(e) => setFilterMinScore(e.target.value)}
-          placeholder="如 60"
-          min={0}
-          max={100}
-          style={inputBaseStyle(fg, inputBg, inputBorder)}
-        />
-      </div>
-
-      <div>
-        <FieldLabel color={fg3}>最高成本 (USD)</FieldLabel>
-        <input
-          type="number"
-          value={filterMaxCost}
-          onChange={(e) => setFilterMaxCost(e.target.value)}
-          placeholder="如 10"
-          min={0}
-          step="any"
-          style={inputBaseStyle(fg, inputBg, inputBorder)}
-        />
-      </div>
-
-      <div style={{ display: "flex", gap: "8px", marginTop: "4px", flexWrap: "wrap" }}>
+      {/* 固定在底部的操作按钮 */}
+      <div
+        style={{
+          display: "flex",
+          gap: "8px",
+          paddingTop: "12px",
+          marginTop: "12px",
+          borderTop: `1px solid ${divider}`,
+          flexShrink: 0,
+        }}
+      >
         <PillButton primary small fg={fg} fg3={fg3} accent={accent} accentFg={accentFg} divider={divider} onClick={applyFilter} disabled={graphLoading}>
           应用筛选
         </PillButton>
@@ -1878,7 +1891,7 @@ export default function Home() {
                     {/* 左筛选 */}
                     {(!isNarrow || showFilterPanel) && (
                       <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0, height: isNarrow ? undefined : "100%", minHeight: 0 }}>
-                        <div style={{ padding: "20px", height: isNarrow ? undefined : "100%", boxSizing: "border-box", overflowY: "auto" }}>{filterPanel}</div>
+                        <div style={{ padding: "20px", height: isNarrow ? undefined : "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>{filterPanel}</div>
                       </Card>
                     )}
 
