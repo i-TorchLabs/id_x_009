@@ -223,6 +223,9 @@ const inputBaseStyle = (
   padding: "9px 12px",
   outline: "none",
   width: "100%",
+  // content-box 下 padding+border 会把输入框撑出父容器 26px，
+  // 用 border-box 保证表单控件始终约束在卡片内边距之内
+  boxSizing: "border-box",
 });
 
 const DomainScoreBar = ({
@@ -891,7 +894,7 @@ export default function Home() {
         />
       </div>
 
-      <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+      <div style={{ display: "flex", gap: "8px", marginTop: "4px", flexWrap: "wrap" }}>
         <PillButton primary small fg={fg} fg3={fg3} accent={accent} accentFg={accentFg} divider={divider} onClick={applyFilter} disabled={graphLoading}>
           应用筛选
         </PillButton>

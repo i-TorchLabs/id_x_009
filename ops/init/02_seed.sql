@@ -3,9 +3,9 @@
 --
 -- 内容：
 --   1) 演示账号（demo@id-x-009.local / demo123456，SHA256 与后端 hash_password 一致）
---   2) 16 个主流模型（覆盖 10 家厂商，商用 API / 开源 / 自托管三种接入方式）
+--   2) 26 个主流模型（覆盖 10 家厂商，商用 API / 开源 / 自托管三种接入方式）
 --   3) 6 个评测数据集（六能力域各一）
---   4) 16 个已完成评测任务 + 结果（评分图谱开箱即有数据；
+--   4) 26 个已完成评测任务 + 结果（评分图谱开箱即有数据；
 --      六域得分与后端 _MODEL_PROFILES 同画像，后续增量任务风格一致）
 
 \c id_x_009
@@ -21,7 +21,7 @@ VALUES (
 );
 
 -- ============================================
--- 2. 模型注册中心（id 1-16）
+-- 2. 模型注册中心（id 1-26）
 -- ============================================
 INSERT INTO models (id, name, vendor, series, version, access_type, backend, params_b, context_length) VALUES
 (1,  'gpt-5.2',          'OpenAI',    'GPT-5',   '5.2',     'api',        'api',    NULL,  400000),
@@ -39,9 +39,19 @@ INSERT INTO models (id, name, vendor, series, version, access_type, backend, par
 (13, 'kimi-k2.5',        'Moonshot',  'Kimi-K2', 'k2.5',    'api',        'api',    NULL,  256000),
 (14, 'glm-5',            'Zhipu',     'GLM',     '5',       'api',        'api',    NULL,  128000),
 (15, 'minimax-m2.5',     'MiniMax',   'M2',      '2.5',     'opensource', 'vllm',   230,   128000),
-(16, 'mistral-large-3',  'Mistral',   'Mistral-Large','3',  'selfhost',   'trtllm', 123,   128000);
+(16, 'mistral-large-3',  'Mistral',   'Mistral-Large','3',  'selfhost',   'trtllm', 123,   128000),
+(17, 'gpt-5-nano',       'OpenAI',    'GPT-5',   '5-nano',  'api',        'api',    NULL,  400000),
+(18, 'claude-haiku-4.6', 'Anthropic', 'Claude',  '4.6-haiku','api',       'api',    NULL,  200000),
+(19, 'gemini-3.1-flash', 'Google',    'Gemini',  '3.1-flash','api',       'api',    NULL,  1000000),
+(20, 'qwen3-8b',         'Alibaba',   'Qwen3',   '8b',      'opensource', 'vllm',   8,     128000),
+(21, 'llama-4-8b',       'Meta',      'Llama-4', '8b',      'opensource', 'vllm',   8,     128000),
+(22, 'deepseek-r1-distill-70b','DeepSeek','DeepSeek-R1','distill-70b','opensource','vllm',70, 128000),
+(23, 'kimi-k2.5-turbo',  'Moonshot',  'Kimi-K2', 'k2.5-turbo','api',      'api',    NULL,  256000),
+(24, 'glm-5-air',        'Zhipu',     'GLM',     '5-air',   'api',        'api',    NULL,  128000),
+(25, 'minimax-m2.5-mini','MiniMax',   'M2',      '2.5-mini','opensource', 'vllm',   12,    128000),
+(26, 'mistral-small-4',  'Mistral',   'Mistral-Small','4',  'selfhost',   'trtllm', 24,    128000);
 
-SELECT setval('models_id_seq', 16);
+SELECT setval('models_id_seq', 26);
 
 -- ============================================
 -- 3. 评测数据集（id 1-6，六能力域各一）
@@ -57,7 +67,7 @@ INSERT INTO datasets (id, name, version, snapshot, domain, sample_count, descrip
 SELECT setval('datasets_id_seq', 6);
 
 -- ============================================
--- 4. 已完成评测任务（id 1-16，与 models 一一对应）
+-- 4. 已完成评测任务（id 1-26，与 models 一一对应）
 -- ============================================
 INSERT INTO eval_tasks (id, task_uid, name, model_id, dataset_ids, backend, status, progress, fingerprint) VALUES
 (1,  't-20260820-0001', 'gpt-5.2 六域基线评测',          1,  '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101","arena-hard-gen@2026.08:snapshot-103","safety-bench@2026.08:snapshot-105","longctx-ruler@2026.08:snapshot-107","mmmu-lite@2026.08:snapshot-109","biz-kb-qa@2026.08:snapshot-111"],"model":"gpt-5.2@5.2","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
@@ -75,28 +85,48 @@ INSERT INTO eval_tasks (id, task_uid, name, model_id, dataset_ids, backend, stat
 (13, 't-20260826-0001', 'kimi-k2.5 六域基线评测',       13, '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"kimi-k2.5@k2.5","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
 (14, 't-20260826-0002', 'glm-5 六域基线评测',           14, '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"glm-5@5","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
 (15, 't-20260827-0001', 'minimax-m2.5 六域基线评测',    15, '[1,2,3,4,5,6]', 'vllm',   'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"minimax-m2.5@2.5","engine":"vllm@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
-(16, 't-20260827-0002', 'mistral-large-3 六域基线评测', 16, '[1,2,3,4,5,6]', 'trtllm', 'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"mistral-large-3@3","engine":"trtllm@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}');
+(16, 't-20260827-0002', 'mistral-large-3 六域基线评测', 16, '[1,2,3,4,5,6]', 'trtllm', 'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"mistral-large-3@3","engine":"trtllm@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
+(17, 't-20260828-0001', 'gpt-5-nano 六域基线评测',        17, '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"gpt-5-nano@5-nano","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
+(18, 't-20260828-0002', 'claude-haiku-4.6 六域基线评测',  18, '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"claude-haiku-4.6@4.6-haiku","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
+(19, 't-20260828-0003', 'gemini-3.1-flash 六域基线评测',  19, '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"gemini-3.1-flash@3.1-flash","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
+(20, 't-20260829-0001', 'qwen3-8b 六域基线评测',          20, '[1,2,3,4,5,6]', 'vllm',   'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"qwen3-8b@8b","engine":"vllm@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
+(21, 't-20260829-0002', 'llama-4-8b 六域基线评测',        21, '[1,2,3,4,5,6]', 'vllm',   'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"llama-4-8b@8b","engine":"vllm@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
+(22, 't-20260829-0003', 'deepseek-r1-distill-70b 六域基线评测', 22, '[1,2,3,4,5,6]', 'vllm', 'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"deepseek-r1-distill-70b@distill-70b","engine":"vllm@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
+(23, 't-20260830-0001', 'kimi-k2.5-turbo 六域基线评测',   23, '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"kimi-k2.5-turbo@k2.5-turbo","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
+(24, 't-20260830-0002', 'glm-5-air 六域基线评测',         24, '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"glm-5-air@5-air","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
+(25, 't-20260830-0003', 'minimax-m2.5-mini 六域基线评测', 25, '[1,2,3,4,5,6]', 'vllm',   'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"minimax-m2.5-mini@2.5-mini","engine":"vllm@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
+(26, 't-20260830-0004', 'mistral-small-4 六域基线评测',   26, '[1,2,3,4,5,6]', 'trtllm', 'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"mistral-small-4@4","engine":"trtllm@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}');
 
-SELECT setval('eval_tasks_id_seq', 16);
+SELECT setval('eval_tasks_id_seq', 26);
 
 -- ============================================
 -- 5. 评测结果（六能力域得分 + 综合评分 + 成本/时延/吞吐）
 --    综合评分 = 0.30*推理 + 0.20*语言 + 0.15*对齐 + 0.15*长上下文 + 0.10*多模态 + 0.10*业务
 -- ============================================
 INSERT INTO eval_results (task_id, model_id, score_reasoning, score_language, score_alignment, score_longctx, score_multimodal, score_business, composite_score, cost_per_task, latency_p50, throughput) VALUES
-(1,  1,  94.2, 92.8, 91.5, 90.6, 93.1, 90.2, 92.56, 5.4200,  812.4,  62.3),
-(2,  2,  85.6, 84.9, 83.2, 82.1, 84.4, 82.6, 84.14, 0.5300,  456.2, 118.5),
-(3,  3,  92.8, 91.6, 92.4, 88.3, 90.2, 89.5, 91.31, 7.8600, 1024.6,  48.7),
-(4,  4,  89.2, 88.6, 89.8, 85.4, 87.1, 86.3, 88.15, 1.7600,  638.1,  86.2),
-(5,  5,  91.6, 90.3, 88.9, 92.7, 91.8, 87.4, 90.52, 2.5400,  742.3,  71.9),
-(6,  6,  87.3, 85.8, 83.6, 84.2, 78.4, 86.1, 85.05, 0.1400,  523.8, 142.6),
-(7,  7,  91.4, 85.2, 84.8, 83.6, 72.5, 84.9, 86.35, 0.4100,  986.4,  58.3),
-(8,  8,  88.1, 87.4, 85.2, 84.8, 82.6, 85.9, 86.42, 0.8800,  612.7,  94.8),
-(9,  9,  85.6, 84.1, 81.8, 82.4, 76.3, 83.2, 83.12, 0.3400,  688.2, 108.4),
-(10, 10, 78.4, 76.8, 75.2, 74.6, 68.2, 76.9, 76.01, 0.0800,  412.5, 156.7),
-(11, 11, 82.6, 80.9, 79.4, 78.8, 77.6, 80.2, 80.53, 0.5800,  724.1,  88.9),
-(12, 12, 76.2, 74.8, 73.6, 72.4, 70.8, 74.1, 74.15, 0.1200,  438.6, 148.2),
-(13, 13, 86.2, 85.6, 83.4, 84.9, 79.8, 84.2, 84.68, 0.4400,  586.3,  98.4),
-(14, 14, 84.3, 83.2, 82.6, 80.4, 75.6, 82.1, 82.24, 0.2900,  642.8,  92.6),
-(15, 15, 79.8, 78.6, 77.2, 76.8, 74.2, 78.4, 78.09, 0.1000,  462.1, 132.8),
-(16, 16, 79.2, 78.4, 76.8, 75.2, 73.6, 77.4, 77.35, 0.4800,  524.7, 118.3);
+(1,  1,  97.4, 95.6, 94.2, 93.8, 96.1, 92.4, 95.39, 9.8500,  842.6,  58.2),
+(2,  2,  82.4, 80.6, 78.2, 74.6, 79.4, 76.8, 79.38, 0.4200,  436.2,  128.5),
+(3,  3,  96.2, 94.8, 95.6, 89.2, 92.4, 91.6, 93.94, 12.4000,  1124.8,  42.6),
+(4,  4,  88.6, 87.2, 90.4, 82.6, 84.8, 83.4, 86.79, 1.8600,  624.3,  92.4),
+(5,  5,  94.6, 92.4, 89.8, 95.2, 94.6, 88.2, 92.89, 2.6400,  768.4,  68.4),
+(6,  6,  88.2, 84.6, 79.4, 82.6, 68.4, 86.2, 83.14, 0.0950,  512.4,  152.6),
+(7,  7,  95.8, 82.4, 80.6, 79.2, 56.4, 82.6, 83.09, 0.4800,  1086.4,  52.4),
+(8,  8,  87.4, 86.2, 81.6, 80.4, 74.6, 84.2, 83.64, 0.7200,  598.6,  102.4),
+(9,  9,  82.6, 79.4, 74.2, 76.8, 62.4, 78.6, 77.41, 0.2600,  672.4,  116.8),
+(10,  10,  72.4, 68.6, 64.2, 62.4, 52.6, 66.8, 66.37, 0.0450,  398.6,  168.4),
+(11,  11,  79.6, 75.2, 71.4, 72.6, 70.4, 74.2, 74.98, 0.6800,  742.6,  82.4),
+(12,  12,  68.2, 63.6, 60.2, 58.4, 55.6, 62.6, 62.79, 0.0850,  424.8,  156.2),
+(13,  13,  85.6, 83.4, 78.2, 83.6, 71.4, 81.6, 81.93, 0.3600,  564.2,  108.6),
+(14,  14,  80.4, 77.6, 75.4, 72.4, 62.6, 76.2, 75.69, 0.2100,  628.4,  98.2),
+(15,  15,  74.6, 71.4, 67.2, 68.6, 64.2, 70.4, 70.49, 0.0680,  448.6,  142.8),
+(16,  16,  73.2, 70.6, 66.4, 64.2, 60.6, 69.4, 68.67, 0.5200,  542.6,  112.4),
+(17,  17,  64.8, 62.4, 58.6, 56.2, 60.4, 58.6, 61.04, 0.0650,  296.4,  202.6),
+(18,  18,  77.6, 75.2, 79.4, 71.6, 72.4, 70.8, 75.29, 0.3400,  372.4,  152.8),
+(19,  19,  81.2, 78.4, 74.6, 83.6, 79.6, 73.4, 79.07, 0.2900,  336.8,  172.4),
+(20,  20,  58.4, 54.6, 50.2, 48.6, 38.4, 52.8, 52.38, 0.0150,  268.4,  228.6),
+(21,  21,  51.6, 47.2, 44.6, 42.4, 36.8, 46.2, 46.27, 0.0120,  252.6,  248.4),
+(22,  22,  84.6, 71.4, 68.2, 66.4, 42.6, 69.6, 71.07, 0.0950,  924.6,  88.4),
+(23,  23,  78.6, 76.2, 71.4, 77.6, 62.4, 74.2, 74.83, 0.1300,  392.6,  158.4),
+(24,  24,  70.2, 66.4, 63.2, 60.4, 52.6, 64.6, 64.60, 0.0620,  372.6,  162.8),
+(25,  25,  62.4, 58.6, 54.2, 52.6, 46.4, 56.8, 56.78, 0.0240,  284.6,  212.4),
+(26,  26,  63.8, 60.4, 56.6, 54.2, 48.6, 58.4, 58.54, 0.0950,  328.4,  182.6);
