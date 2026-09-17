@@ -4,10 +4,10 @@
 
 **一站式大模型评测、评分图谱与性价比分析平台**
 
-![编号](https://img.shields.io/static/v1?label=编号&message=ID-009&color=C3272B&style=for-the-badge&labelColor=555)
+![编号](https://img.shields.io/static/v1?label=编号&message=009&color=C3272B&style=for-the-badge&labelColor=555)
 ![协议](https://img.shields.io/static/v1?label=协议&message=MIT&color=C3272B&style=for-the-badge&labelColor=555)
-![作者](https://img.shields.io/static/v1?label=作者&message=i-Core&color=C3272B&style=for-the-badge&labelColor=555)
-![组织](https://img.shields.io/static/v1?label=组织&message=i-Core&color=C3272B&style=for-the-badge&labelColor=555)
+![作者](https://img.shields.io/static/v1?label=作者&message=查锐&color=C3272B&style=for-the-badge&labelColor=555)
+![组织](https://img.shields.io/static/v1?label=组织&message=SME&color=C3272B&style=for-the-badge&labelColor=555)
 ![引擎](https://img.shields.io/static/v1?label=引擎&message=Litestar+%2B+Next.js&color=C3272B&style=for-the-badge&labelColor=555)
 
 </div>
