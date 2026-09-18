@@ -99,6 +99,7 @@ const Card = ({
   shadow,
   border,
   style,
+  noPadding,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -106,12 +107,13 @@ const Card = ({
   shadow: string;
   border?: string;
   style?: React.CSSProperties;
+  noPadding?: boolean;
 }) => (
   <div
-    className={`rounded-2xl overflow-visible ${className}`}
+    className={`rounded-2xl overflow-hidden ${className}`}
     style={{ background: bg, boxShadow: shadow, border, ...style }}
   >
-    <div style={{ padding: "28px" }}>{children}</div>
+    {noPadding ? children : <div style={{ padding: "28px" }}>{children}</div>}
   </div>
 );
 
@@ -1129,6 +1131,14 @@ export default function Home() {
               <span style={{ fontFamily: SF_TEXT, fontSize: "11px", color: fg2, letterSpacing: "-0.1px" }}>{v}</span>
             </span>
           ))}
+          {graphData.frontier.length >= 2 && (
+            <span className="inline-flex items-center gap-1.5">
+              <svg width="16" height="8" style={{ display: "inline-block" }}>
+                <line x1="0" y1="4" x2="16" y2="4" stroke={PARETO_COLOR} strokeOpacity={PARETO_STROKE_OPACITY} strokeWidth="1.5" strokeDasharray="4 3" />
+              </svg>
+              <span style={{ fontFamily: SF_TEXT, fontSize: "11px", color: fg2, letterSpacing: "-0.1px" }}>Pareto 前沿</span>
+            </span>
+          )}
         </div>
       )}
       <div ref={observeCanvas} style={{ position: "relative", width: "100%", flex: 1, minHeight: 0 }}>
@@ -1243,28 +1253,71 @@ export default function Home() {
           ))}
 
           {/* Pareto 前沿 */}
-          {geom.frontierPts.length >= 2 && (
-            <>
-              <motion.polyline
-                points={geom.frontierPts.map((p) => `${p.x},${p.y}`).join(" ")}
-                fill="none"
-                stroke={PARETO_COLOR}
-                strokeOpacity={PARETO_STROKE_OPACITY}
-                strokeWidth={1.5}
-                strokeDasharray="6 4"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.8, delay: 0.3, ease }}
-              />
-              <text
-                x={geom.frontierPts[geom.frontierPts.length - 1].x + 6}
-                y={geom.frontierPts[geom.frontierPts.length - 1].y - 6}
-                style={{ fontFamily: SF_TEXT, fontSize: "10px", fill: PARETO_COLOR, letterSpacing: "0.02em", fontWeight: 600 }}
-              >
-                Pareto 前沿
-              </text>
-            </>
-          )}
+          {geom.frontierPts.length >= 2 && (() => {
+            const pts = geom.frontierPts;
+            const bottom = geom.H - geom.MB;
+            const right = geom.W - geom.MR;
+            // 阶梯路径：前沿点支配其右下方矩形区域（更贵且更差），
+            // 阶梯线即"被支配区域"的上边界，比斜线直连更贴合 Pareto 语义。
+            let stair = `M ${pts[0].x},${pts[0].y}`;
+            for (let i = 1; i < pts.length; i++) stair += ` H ${pts[i].x} V ${pts[i].y}`;
+            const area = `${stair} H ${right} V ${bottom} H ${pts[0].x} Z`;
+            const last = pts[pts.length - 1];
+            return (
+              <>
+                {/* 被支配区域：前沿右下方浅色遮罩，直观表达"此区域内均非最优" */}
+                <motion.path
+                  d={area}
+                  fill={PARETO_COLOR}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.045 }}
+                  transition={{ duration: 0.8, delay: 0.5, ease }}
+                  style={{ pointerEvents: "none" }}
+                />
+                <motion.path
+                  d={stair}
+                  fill="none"
+                  stroke={PARETO_COLOR}
+                  strokeOpacity={PARETO_STROKE_OPACITY}
+                  strokeWidth={1.5}
+                  strokeDasharray="6 4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.8, delay: 0.3, ease }}
+                />
+                {/* 前沿顶点标记 */}
+                {pts.map((p, i) => (
+                  <circle
+                    key={`fp-${i}`}
+                    cx={p.x}
+                    cy={p.y}
+                    r={3}
+                    fill={PARETO_COLOR}
+                    fillOpacity={0.9}
+                    style={{ pointerEvents: "none" }}
+                  />
+                ))}
+                {/* 标注：置于末端顶点上方并右对齐，防止溢出画布 */}
+                <text
+                  x={Math.min(last.x + 4, right)}
+                  y={last.y - 10}
+                  textAnchor="end"
+                  style={{ fontFamily: SF_TEXT, fontSize: "10px", fill: PARETO_COLOR, letterSpacing: "0.02em", fontWeight: 600 }}
+                >
+                  Pareto 前沿 · 同价位最优
+                </text>
+                {/* 被支配区域文字标注 */}
+                <text
+                  x={right - 6}
+                  y={bottom - 8}
+                  textAnchor="end"
+                  style={{ fontFamily: SF_TEXT, fontSize: "10px", fill: PARETO_COLOR, opacity: 0.45, letterSpacing: "0.02em" }}
+                >
+                  阴影区 = 被支配（存在更便宜且更优的选择）
+                </text>
+              </>
+            );
+          })()}
 
           {/* 悬停十字准线：精密仪器感，指向坐标轴读数 */}
           {hoverPoint && (
@@ -1335,8 +1388,8 @@ export default function Home() {
                   r={r}
                   fill={color}
                   fillOpacity={BUBBLE_FILL_OPACITY}
-                  stroke={p.onFrontier || isSelected ? accent : "none"}
-                  strokeWidth={p.onFrontier || isSelected ? 2 : 0}
+                  stroke={isSelected ? accent : p.onFrontier ? PARETO_COLOR : "none"}
+                  strokeWidth={isSelected || p.onFrontier ? 2 : 0}
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.4, delay: 0.15 + idx * 0.035, ease }}
@@ -1378,6 +1431,11 @@ export default function Home() {
           <div style={{ fontFamily: SF_TEXT, fontSize: "11px", color: fg3, marginBottom: "6px" }}>
             {hoverPoint.point.vendor}
           </div>
+          {hoverPoint.point.onFrontier && (
+            <div style={{ fontFamily: SF_TEXT, fontSize: "10px", color: PARETO_COLOR, fontWeight: 600, letterSpacing: "0.02em", marginBottom: "6px" }}>
+              ◆ Pareto 前沿点 · 同价位最优
+            </div>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "2px 10px", fontFamily: SF_MONO, fontSize: "11px", color: fg2 }}>
             <span style={{ color: fg3 }}>评分</span>
             <span>{hoverPoint.point.compositeScore.toFixed(1)}</span>
@@ -1694,7 +1752,7 @@ export default function Home() {
           }}
         >
           {datasets.map((d) => (
-            <Card key={d.id} className="lift-card" bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0 }}>
+            <Card key={d.id} className="lift-card" bg={card} shadow={cardShadow} border={`1px solid ${divider}`} noPadding>
               <div style={{ padding: "20px 24px" }}>
                 <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: "6px" }}>
                   <span style={{ fontFamily: SF_DISPLAY, fontSize: "17px", fontWeight: 600, color: fg, letterSpacing: "-0.34px" }}>
@@ -1890,13 +1948,13 @@ export default function Home() {
                   >
                     {/* 左筛选 */}
                     {(!isNarrow || showFilterPanel) && (
-                      <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0, height: isNarrow ? undefined : "100%", minHeight: 0 }}>
+                      <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} noPadding style={{ height: isNarrow ? undefined : "100%", minHeight: 0 }}>
                         <div style={{ padding: "20px", height: isNarrow ? undefined : "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>{filterPanel}</div>
                       </Card>
                     )}
 
                     {/* 中画布 */}
-                    <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0, height: isNarrow ? undefined : "100%", minHeight: isNarrow ? "480px" : 0 }}>
+                    <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} noPadding style={{ height: isNarrow ? undefined : "100%", minHeight: isNarrow ? "480px" : 0 }}>
                       <div style={{ padding: "12px", height: isNarrow ? undefined : "100%", boxSizing: "border-box", minHeight: isNarrow ? "480px" : 0, position: "relative" }}>
                         {graphLoading && graphData.points.length === 0 ? (
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: "440px" }}>
@@ -1912,7 +1970,7 @@ export default function Home() {
                     </Card>
 
                     {/* 右详情 */}
-                    <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0, height: isNarrow ? undefined : "100%", minHeight: 0 }}>
+                    <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} noPadding style={{ height: isNarrow ? undefined : "100%", minHeight: 0 }}>
                         <div style={{ padding: "20px", height: isNarrow ? undefined : "100%", boxSizing: "border-box", overflowY: "auto" }}>{detailPanel}</div>
                     </Card>
                   </div>
@@ -1923,7 +1981,7 @@ export default function Home() {
             {activeTab === "tasks" && (
               <div className="h-full overflow-y-auto">
                 <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-                  <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0 }}>
+                  <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} noPadding>
                     <div style={{ padding: "24px" }}>{tasksPanel}</div>
                   </Card>
                 </div>
@@ -1933,7 +1991,7 @@ export default function Home() {
             {activeTab === "models" && (
               <div className="h-full overflow-y-auto">
                 <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-                  <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} style={{ padding: 0 }}>
+                  <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} noPadding>
                     <div style={{ padding: "24px" }}>{modelsPanel}</div>
                   </Card>
                 </div>

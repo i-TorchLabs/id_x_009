@@ -83,6 +83,7 @@ _TICK_SECONDS = 1.0
 # 模型画像：(基础能力分, 每任务成本 USD)
 # 新任务按画像 + 指纹种子抖动生成结果，保证可复现风格。
 _MODEL_PROFILES: Dict[str, Tuple[float, float]] = {
+    # ── 原始 16 模型 ──
     "gpt-5.2": (92.0, 5.50),
     "gpt-5-mini": (84.0, 0.55),
     "claude-opus-4.6": (91.0, 8.00),
@@ -99,6 +100,25 @@ _MODEL_PROFILES: Dict[str, Tuple[float, float]] = {
     "glm-5": (82.0, 0.30),
     "minimax-m2.5": (78.0, 0.10),
     "mistral-large-3": (77.0, 0.50),
+    # ── 扩展 18 模型：拉满评分 × 成本分布 ──
+    "gpt-5.2-pro": (96.0, 22.00),
+    "o3-pro": (94.0, 18.00),
+    "claude-opus-4.6-x": (93.0, 15.00),
+    "gemini-3.1-ultra": (92.0, 6.80),
+    "deepseek-v3.2-pro": (88.0, 1.20),
+    "qwen3-72b": (80.0, 0.55),
+    "llama-4-13b": (66.0, 0.04),
+    "kimi-k2.5-pro": (89.0, 2.40),
+    "glm-5-pro": (85.0, 0.65),
+    "minimax-m2.5-pro": (82.0, 0.42),
+    "mistral-large-3-pro": (81.0, 0.75),
+    "phi-5-mini": (48.0, 0.008),
+    "phi-5-nano": (38.0, 0.003),
+    "gemma-4-9b": (52.0, 0.012),
+    "gemma-4-2b": (32.0, 0.005),
+    "command-r-plus": (75.0, 0.18),
+    "yi-1.5-34b": (70.0, 0.06),
+    "internlm-3-8b": (58.0, 0.025),
 }
 
 # 新注册模型的厂商默认画像
@@ -113,6 +133,10 @@ _VENDOR_DEFAULT_PROFILE: Dict[str, Tuple[float, float]] = {
     "Zhipu": (80.0, 0.35),
     "MiniMax": (76.0, 0.15),
     "Mistral": (75.0, 0.45),
+    "Microsoft": (60.0, 0.02),
+    "Cohere": (72.0, 0.15),
+    "01.AI": (68.0, 0.08),
+    "InternLM": (62.0, 0.04),
 }
 
 
