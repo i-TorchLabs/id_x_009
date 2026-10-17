@@ -1,12 +1,3 @@
-"""GraphQL 控制器层（thin resolvers）—— id_x_009 AI 模型评测平台 Demo。
-
-本模块仅承担 **请求路由与流量转发** 职责：
-- 以 ``Query`` / ``Mutation`` 暴露 GraphQL 端点签名；
-- 每个 resolver 仅做参数透传，委托到 ``src/views/x_views.py`` 的视图函数；
-- 不包含任何业务逻辑、不直接操作数据库或第三方库。
-
-业务实现见 ``x_views``，数据契约见 ``x_schemas``，ORM 模型见 ``x_models``。
-"""
 from typing import List, Optional
 
 import strawberry
@@ -130,7 +121,6 @@ schema = strawberry.Schema(
 
 
 def register_routers(route_prefix: str):
-    """注册 GraphQL 路由，供主程序统一挂载。"""
     from litestar import Router
 
     from strawberry.litestar import make_graphql_controller

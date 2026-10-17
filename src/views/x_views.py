@@ -1,17 +1,3 @@
-"""业务视图层（business logic）—— id_x_009 AI 模型评测平台 Demo。
-
-本模块承载 id_x_009 插件全部业务逻辑，控制器层
-（``x_controllers.py``）仅作为 GraphQL 请求入口与流量转发，不做任何业务
-处理，统一委托到本模块的视图函数。
-
-Demo 定位说明：
-- 评测执行为「模拟执行」：创建任务后由守护线程推进状态机
-  （Pending -> Running -> Done），按模型画像生成六能力域得分与成本；
-- 任务状态全程落库（eval_tasks.status/progress），Granian 多 worker
-  下任意进程都能读到一致的进度（与 id_x_013 落盘 JSON 同一思路）；
-- 种子模型预置画像（``_MODEL_PROFILES``），新注册模型按厂商推断画像，
-  保证评分图谱开箱即有数据、增量任务风格一致。
-"""
 import asyncio
 import hashlib
 import json
@@ -467,7 +453,6 @@ def _build_fingerprint(
     temperature: float,
     max_tokens: int,
 ) -> str:
-    """可复现指纹：数据集快照 + 模型版本 + 推理引擎 + 超参四要素。"""
     payload = {
         "dataset": [d.snapshot for d in datasets],
         "model": f"{model.name}@{model.version}",
@@ -542,15 +527,6 @@ async def view_create_task(input: CreateTaskInput) -> CreateTaskResultType:
 
 
 def _start_runner(task_id: int) -> None:
-    """守护线程模拟执行：与请求生命周期解耦，进度全程落库。
-
-    Granian 多 worker 下虽然注册线程的进程随机，但状态在 DB 中，
-    任意进程轮询任务状态均可见一致进度。
-
-    线程内使用「专属引擎 + 独立事件循环」：共享会话工厂的 asyncpg
-    连接池绑定主请求循环，跨循环复用会报 attached to a different
-    loop，因此执行线程必须自建连接（用完即 dispose）。
-    """
     thread = threading.Thread(
         target=lambda: asyncio.run(_run_task_with_own_engine(task_id)),
         daemon=True,
@@ -586,7 +562,6 @@ def _profile_for(model: Model) -> Tuple[float, float]:
 
 
 async def _run_task(maker: async_sessionmaker, task_id: int) -> None:
-    """状态机推进：Pending -> Running ->（可 Paused）-> Done，并生成结果。"""
     rng: Optional[random.Random] = None
     model: Optional[Model] = None
 
@@ -633,7 +608,7 @@ async def _run_task(maker: async_sessionmaker, task_id: int) -> None:
                     logger.info(f"评测任务完成: {task.task_uid}")
                     return
 
-        except Exception as e:  # noqa: BLE001 - 保证线程不静默死亡
+        except Exception as e:
             logger.error(f"评测任务 {task_id} 执行异常: {e}", exc_info=True)
             try:
                 async with maker() as session:
@@ -645,13 +620,12 @@ async def _run_task(maker: async_sessionmaker, task_id: int) -> None:
                         task.status = "Failed"
                         task.error = str(e)
                         await session.commit()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             return
 
 
 def _generate_result(task: EvalTask, model: Optional[Model], rng: random.Random) -> EvalResult:
-    """按模型画像 + 指纹种子抖动生成六能力域得分与成本（可复现风格）。"""
     base_score, base_cost = _profile_for(model) if model is not None else (72.0, 0.80)
 
     domain_scores: Dict[str, float] = {}
@@ -836,7 +810,6 @@ async def view_task_report(task_uid: str) -> TaskReportType:
 async def view_score_cost_graph(
     filter: Optional[ScoreGraphFilterInput] = None,
 ) -> ScoreGraphType:
-    """评分 × 成本散点图谱：每个模型取最新一条评测结果，服务端计算 Pareto 前沿。"""
     try:
         async with get_session()() as session:
             result = await session.execute(

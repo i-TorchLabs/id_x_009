@@ -27,13 +27,11 @@ _session_maker: Optional[async_sessionmaker[AsyncSession]] = None
 
 
 def set_session_maker(maker: async_sessionmaker[AsyncSession]) -> None:
-    """由 main.py 调用，将 SQLAlchemyPlugin 提供的 session_maker 注入全局。"""
     global _session_maker
     _session_maker = maker
 
 
 def get_session() -> async_sessionmaker[AsyncSession]:
-    """获取全局 session_maker，供控制器和视图使用。"""
     if _session_maker is None:
         raise RuntimeError("数据库会话工厂未初始化，请先调用 set_session_maker()")
     return _session_maker
@@ -135,7 +133,6 @@ class PasswordResetToken(Base):
 
 
 class Model(Base):
-    """模型注册中心：厂商 / 系列 / 版本 / 接入方式 / 推理后端。"""
 
     __tablename__ = "models"
 
@@ -170,7 +167,6 @@ class Model(Base):
 
 
 class Dataset(Base):
-    """评测数据集仓：版本化快照与能力域。"""
 
     __tablename__ = "datasets"
 
@@ -195,7 +191,6 @@ class Dataset(Base):
 
 
 class EvalTask(Base):
-    """评测任务：Draft→Pending→Running→Done/Failed，Running 可暂停（断点续跑）。"""
 
     __tablename__ = "eval_tasks"
 
@@ -243,7 +238,6 @@ class EvalTask(Base):
 
 
 class EvalResult(Base):
-    """评测结果：六能力域得分 + 综合评分 + 成本/时延/吞吐（评分图谱数据源）。"""
 
     __tablename__ = "eval_results"
 

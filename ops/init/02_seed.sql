@@ -1,20 +1,5 @@
--- 02_seed.sql —— id_x_009 演示种子数据
--- 由 db 容器 docker-entrypoint-initdb.d 在首次启动时自动执行（顺序在 01_init.sql 之后）
---
--- 内容：
---   1) 演示账号（demo@id-x-009.local / demo123456，SHA256 与后端 hash_password 一致）
---   2) 34 个主流模型（覆盖 10 家厂商，商用 API / 开源 / 自托管三种接入方式）
---   3) 6 个评测数据集（六能力域各一）
---   4) 34 个已完成评测任务 + 结果（评分图谱开箱即有数据；
---      六域得分与后端 _MODEL_PROFILES 同画像，后续增量任务风格一致）
---   5) 扩展 8 组样本：拉满评分 × 成本分布，覆盖超低成本到超高端旗舰，
---      使气泡在画布上充分展开、减少重合
-
 \c id_x_009
 
--- ============================================
--- 1. 演示账号
--- ============================================
 INSERT INTO users (email, password_hash, is_active)
 VALUES (
     'demo@id-x-009.local',
@@ -22,9 +7,6 @@ VALUES (
     TRUE
 );
 
--- ============================================
--- 2. 模型注册中心（id 1-34）
--- ============================================
 INSERT INTO models (id, name, vendor, series, version, access_type, backend, params_b, context_length) VALUES
 (1,  'gpt-5.2',          'OpenAI',    'GPT-5',   '5.2',     'api',        'api',    NULL,  400000),
 (2,  'gpt-5-mini',       'OpenAI',    'GPT-5',   '5-mini',  'api',        'api',    NULL,  400000),
@@ -52,7 +34,6 @@ INSERT INTO models (id, name, vendor, series, version, access_type, backend, par
 (24, 'glm-5-air',        'Zhipu',     'GLM',     '5-air',   'api',        'api',    NULL,  128000),
 (25, 'minimax-m2.5-mini','MiniMax',   'M2',      '2.5-mini','opensource', 'vllm',   12,    128000),
 (26, 'mistral-small-4',  'Mistral',   'Mistral-Small','4',  'selfhost',   'trtllm', 24,    128000),
--- 扩展 8 模型：拉满评分 × 成本分布
 (27, 'gpt-5.2-pro',       'OpenAI',    'GPT-5',   '5.2-pro', 'api',        'api',    NULL,  400000),
 (28, 'o3-pro',            'OpenAI',    'o-series','3-pro',   'api',        'api',    NULL,  200000),
 (29, 'claude-opus-4.6-x', 'Anthropic', 'Claude',  '4.6-opus-x','api',      'api',    NULL,  200000),
@@ -64,9 +45,6 @@ INSERT INTO models (id, name, vendor, series, version, access_type, backend, par
 
 SELECT setval('models_id_seq', 34);
 
--- ============================================
--- 3. 评测数据集（id 1-6，六能力域各一）
--- ============================================
 INSERT INTO datasets (id, name, version, snapshot, domain, sample_count, description) VALUES
 (1, 'mmlu-pro',       '2026.08', 'mmlu-pro@2026.08:snapshot-101',       '客观知识与推理', 12000, '大规模多任务语言理解（研究生级推理增强版）'),
 (2, 'arena-hard-gen', '2026.08', 'arena-hard-gen@2026.08:snapshot-103', '语言与生成',      500,  '开放式生成质量评判集（LLM-as-Judge 协议）'),
@@ -77,9 +55,6 @@ INSERT INTO datasets (id, name, version, snapshot, domain, sample_count, descrip
 
 SELECT setval('datasets_id_seq', 6);
 
--- ============================================
--- 4. 已完成评测任务（id 1-34，与 models 一一对应）
--- ============================================
 INSERT INTO eval_tasks (id, task_uid, name, model_id, dataset_ids, backend, status, progress, fingerprint) VALUES
 (1,  't-20260820-0001', 'gpt-5.2 六域基线评测',          1,  '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101","arena-hard-gen@2026.08:snapshot-103","safety-bench@2026.08:snapshot-105","longctx-ruler@2026.08:snapshot-107","mmmu-lite@2026.08:snapshot-109","biz-kb-qa@2026.08:snapshot-111"],"model":"gpt-5.2@5.2","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
 (2,  't-20260820-0002', 'gpt-5-mini 六域基线评测',       2,  '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"gpt-5-mini@5-mini","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
@@ -107,7 +82,6 @@ INSERT INTO eval_tasks (id, task_uid, name, model_id, dataset_ids, backend, stat
 (24, 't-20260830-0002', 'glm-5-air 六域基线评测',         24, '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"glm-5-air@5-air","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
 (25, 't-20260830-0003', 'minimax-m2.5-mini 六域基线评测', 25, '[1,2,3,4,5,6]', 'vllm',   'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"minimax-m2.5-mini@2.5-mini","engine":"vllm@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
 (26, 't-20260830-0004', 'mistral-small-4 六域基线评测',   26, '[1,2,3,4,5,6]', 'trtllm', 'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"mistral-small-4@4","engine":"trtllm@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
--- 扩展 8 任务
 (27, 't-20260831-0001', 'gpt-5.2-pro 六域基线评测',       27, '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"gpt-5.2-pro@5.2-pro","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
 (28, 't-20260831-0002', 'o3-pro 六域基线评测',            28, '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"o3-pro@3-pro","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
 (29, 't-20260831-0003', 'claude-opus-4.6-x 六域基线评测', 29, '[1,2,3,4,5,6]', 'api',    'Done', 100, '{"dataset":["mmlu-pro@2026.08:snapshot-101"],"model":"claude-opus-4.6-x@4.6-opus-x","engine":"api@0.6","hyper":{"temperature":0.0,"max_tokens":2048}}'),
@@ -119,12 +93,6 @@ INSERT INTO eval_tasks (id, task_uid, name, model_id, dataset_ids, backend, stat
 
 SELECT setval('eval_tasks_id_seq', 34);
 
--- ============================================
--- 5. 评测结果（六能力域得分 + 综合评分 + 成本/时延/吞吐）
---    综合评分 = 0.30*推理 + 0.20*语言 + 0.15*对齐 + 0.15*长上下文 + 0.10*多模态 + 0.10*业务
---    扩展 8 组：覆盖 $0.038 ~ $24.20 成本域，63.0 ~ 97.8 综合评分域，
---    气泡在画布上充分展开、减少重合
--- ============================================
 INSERT INTO eval_results (task_id, model_id, score_reasoning, score_language, score_alignment, score_longctx, score_multimodal, score_business, composite_score, cost_per_task, latency_p50, throughput) VALUES
 (1,  1,  97.4, 95.6, 94.2, 93.8, 96.1, 92.4, 95.39, 9.8500,  842.6,  58.2),
 (2,  2,  82.4, 80.6, 78.2, 74.6, 79.4, 76.8, 79.38, 0.4200,  436.2,  128.5),
@@ -152,7 +120,6 @@ INSERT INTO eval_results (task_id, model_id, score_reasoning, score_language, sc
 (24, 24,  70.2, 66.4, 63.2, 60.4, 52.6, 64.6, 64.60, 0.0620,  372.6,  162.8),
 (25, 25,  62.4, 58.6, 54.2, 52.6, 46.4, 56.8, 56.78, 0.0240,  284.6,  212.4),
 (26, 26,  63.8, 60.4, 56.6, 54.2, 48.6, 58.4, 58.54, 0.0950,  328.4,  182.6),
--- 扩展 8 组：拉满评分 × 成本分布
 (27, 27,  99.2, 98.4, 97.6, 96.8, 98.2, 95.4, 97.82, 24.2000, 1486.2, 28.4),
 (28, 28,  97.6, 96.2, 95.4, 94.6, 96.8, 93.2, 96.02, 19.8000, 1284.6, 32.6),
 (29, 29,  96.8, 95.4, 96.2, 92.4, 94.6, 92.8, 95.19, 16.5000, 1052.4, 38.2),

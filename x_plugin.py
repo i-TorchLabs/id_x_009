@@ -8,11 +8,6 @@ from x_models._contracts import PluginInterface
 
 
 class _Idx009Plugin:
-    """id_x_009 插件实现（AI 模型评测平台 Demo）。
-
-    懒加载内部 ``x_models`` 模块，避免主程序加载本插件时立即触发
-    可能尚未就绪的 ORM 注册链。
-    """
 
     name = "id_x_009"
 
@@ -39,5 +34,4 @@ class _Idx009Plugin:
 
 
 def load_plugin() -> PluginInterface:
-    """返回 id_x_009 插件实例。"""
     return _Idx009Plugin()
