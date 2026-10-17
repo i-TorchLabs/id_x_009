@@ -23,9 +23,6 @@ class Base(DeclarativeBase):
     pass
 
 
-# ==========================================
-# 全局会话工厂，由 main.py 在 Litestar 启动后注入
-# ==========================================
 _session_maker: Optional[async_sessionmaker[AsyncSession]] = None
 
 
@@ -46,9 +43,6 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-# ==========================================
-# 认证三表（与 id_x_013 同构）
-# ==========================================
 
 
 class UserToken(Base):
@@ -138,9 +132,6 @@ class PasswordResetToken(Base):
         return self.expires_at > datetime.now(timezone.utc)
 
 
-# ==========================================
-# 评测平台业务表
-# ==========================================
 
 
 class Model(Base):
@@ -264,7 +255,6 @@ class EvalResult(Base):
     model_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("models.id"), nullable=False, index=True, comment="模型"
     )
-    # 六大能力域得分（0-100）
     score_reasoning: Mapped[float] = mapped_column(
         Float, nullable=False, default=0, comment="客观知识与推理"
     )

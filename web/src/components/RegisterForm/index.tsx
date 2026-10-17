@@ -81,7 +81,7 @@ export default function RegisterForm({
 
   return (
     <div className="w-full max-w-[400px]">
-      {/* Logo */}
+      { }
       <div className="flex justify-center mb-10">
         <div
           className="flex items-center justify-center"
@@ -92,12 +92,12 @@ export default function RegisterForm({
             background: iconContainerBg,
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          { }
           <img src="/favicon.ico" alt="Logo" style={{ width: 28, height: 28 }} />
         </div>
       </div>
 
-      {/* Header */}
+      { }
       <div className="text-center mb-12">
         <h1
           className="text-[32px] font-semibold mb-3"
@@ -128,9 +128,9 @@ export default function RegisterForm({
           void onSubmit(e);
         }}
       >
-        {/* Input Fields Group */}
+        { }
         <div style={{ marginBottom: "32px" }}>
-          {/* Email */}
+          { }
           <div style={{ marginBottom: "20px" }}>
             <TextField fullWidth variant={emailError ? "secondary" : "primary"}>
               <label style={labelStyle(emailError)}>EMAIL</label>
@@ -149,7 +149,7 @@ export default function RegisterForm({
             </TextField>
           </div>
 
-          {/* Phone */}
+          { }
           <div style={{ marginBottom: "20px" }}>
             <TextField fullWidth variant={phoneError ? "secondary" : "primary"}>
               <label style={labelStyle(phoneError)}>
@@ -170,7 +170,7 @@ export default function RegisterForm({
             </TextField>
           </div>
 
-          {/* Password */}
+          { }
           <div style={{ marginBottom: "20px" }}>
             <TextField fullWidth variant={passwordError ? "secondary" : "primary"}>
               <label style={labelStyle(passwordError)}>PASSWORD</label>
@@ -208,7 +208,7 @@ export default function RegisterForm({
             </TextField>
           </div>
 
-          {/* Confirm Password */}
+          { }
           <div>
             <TextField fullWidth variant={confirmPasswordError ? "secondary" : "primary"}>
               <label style={labelStyle(confirmPasswordError)}>CONFIRM PASSWORD</label>
@@ -225,7 +225,7 @@ export default function RegisterForm({
           </div>
         </div>
 
-        {/* Error */}
+        { }
         {errorMsg && (
           <div
             className="rounded-xl px-4 py-3.5"
@@ -243,7 +243,7 @@ export default function RegisterForm({
           </div>
         )}
 
-        {/* Submit */}
+        { }
         <div style={{ paddingTop: "72px", paddingBottom: "16px" }}>
           <Button
             type="submit"
@@ -266,7 +266,7 @@ export default function RegisterForm({
         </div>
       </form>
 
-      {/* Footer link */}
+      { }
       <div
         className="text-center"
         style={{

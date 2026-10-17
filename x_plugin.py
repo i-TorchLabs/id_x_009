@@ -28,7 +28,6 @@ class _Idx009Plugin:
 
     @property
     def required_extensions(self) -> tuple[str, ...]:
-        # 009 模型表仅用基础类型，不依赖 pgcrypto / pgvector。
         return ()
 
     def set_session_maker(self, maker: async_sessionmaker[AsyncSession]) -> None:

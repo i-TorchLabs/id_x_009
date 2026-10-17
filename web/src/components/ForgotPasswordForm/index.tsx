@@ -52,7 +52,7 @@ export default function ForgotPasswordForm({
     if (isSuccess) {
         return (
             <div className="w-full max-w-[400px]">
-                {/* Logo */}
+                { }
                 <div className="flex justify-center mb-10">
                     <div
                         className="flex items-center justify-center"
@@ -110,7 +110,7 @@ export default function ForgotPasswordForm({
 
     return (
         <div className="w-full max-w-[400px]">
-            {/* Logo */}
+            { }
             <div className="flex justify-center mb-10">
                 <div
                     className="flex items-center justify-center"
@@ -121,12 +121,12 @@ export default function ForgotPasswordForm({
                         background: iconContainerBg,
                     }}
                 >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    { }
                     <img src="/favicon.ico" alt="Logo" style={{ width: 28, height: 28 }} />
                 </div>
             </div>
 
-            {/* Header */}
+            { }
             <div className="text-center mb-12">
                 <h1
                     className="text-[32px] font-semibold mb-3"
@@ -147,7 +147,7 @@ export default function ForgotPasswordForm({
                     void onSubmit(e);
                 }}
             >
-                {/* Input Fields Group */}
+                { }
                 <div style={{ marginBottom: "8px" }}>
                     <TextField fullWidth variant={emailError ? "secondary" : "primary"}>
                         <label style={labelStyle(emailError)}>EMAIL</label>
@@ -176,7 +176,7 @@ export default function ForgotPasswordForm({
                     </TextField>
                 </div>
 
-                {/* Options Group */}
+                { }
                 <div className="flex items-center justify-between">
                     <Checkbox
                         isSelected={agreedToTerms}
@@ -208,7 +208,7 @@ export default function ForgotPasswordForm({
                     </p>
                 )}
 
-                {/* Error */}
+                { }
                 {errorMsg && (
                     <div
                         className="rounded-xl px-4 py-3.5"
@@ -226,7 +226,7 @@ export default function ForgotPasswordForm({
                     </div>
                 )}
 
-                {/* Submit */}
+                { }
                 <div style={{ paddingTop: "72px", paddingBottom: "16px" }}>
                     <Button
                         type="submit"
@@ -249,7 +249,7 @@ export default function ForgotPasswordForm({
                 </div>
             </form>
 
-            {/* Footer link */}
+            { }
             <div
                 className="text-center"
                 style={{

@@ -27,7 +27,7 @@ export default function LeftPanel({
 
   return (
     <div className="relative hidden md:flex flex-col justify-between px-10 py-10 overflow-hidden">
-      {/* ── Background: vivid color blobs as blur source ── */}
+      { }
       <div className="absolute inset-0 z-0">
         <div
           className="absolute top-[10%] left-[5%] w-75 h-75 rounded-full"
@@ -67,7 +67,7 @@ export default function LeftPanel({
         />
       </div>
 
-      {/* ── Frosted glass overlay ── */}
+      { }
       <div
         className="absolute inset-0 z-1"
         style={{
@@ -77,9 +77,9 @@ export default function LeftPanel({
         }}
       />
 
-      {/* Logo */}
+      { }
       <div className="absolute top-4 left-4 z-10 flex items-center gap-2.5 px-3 py-2 rounded-lg">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+        { }
         <img
           src="/favicon.ico"
           alt="评测平台 logo"
@@ -88,7 +88,7 @@ export default function LeftPanel({
         <span className="text-base font-semibold text-white">评测平台 · id_x_009</span>
       </div>
 
-      {/* Animated Characters */}
+      { }
       <div className="relative z-10 flex-1 flex items-center justify-center min-h-0">
         <AnimatedCharacters
           isTyping={isTyping}
@@ -98,7 +98,7 @@ export default function LeftPanel({
         />
       </div>
 
-      {/* Footer Links */}
+      { }
       <div
         className="absolute left-2 bottom-2 flex gap-7 text-[13px] z-10"
         style={{ color: linkColor }}

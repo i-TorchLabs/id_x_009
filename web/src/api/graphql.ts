@@ -1,25 +1,16 @@
-/**
- * GraphQL API 客户端
- * 用于与 id_x_009（AI 模型评测平台）后端 GraphQL 接口交互
- */
 
 import { API_BASE_URL } from "@/utils/config";
 
-// GraphQL 请求配置
 interface GraphQLRequestConfig {
   query: string;
   variables?: Record<string, any>;
 }
 
-// GraphQL 响应类型
 interface GraphQLResponse<T = any> {
   data: T;
   errors?: Array<{ message: string }>;
 }
 
-/**
- * GraphQL 客户端类
- */
 class GraphQLClient {
   private baseUrl: string;
 
@@ -27,15 +18,11 @@ class GraphQLClient {
     this.baseUrl = baseUrl;
   }
 
-  /**
-   * 获取默认请求头
-   */
   private getDefaultHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
 
-    // 如果有 token，添加到请求头
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("token");
       if (token) {
@@ -46,9 +33,6 @@ class GraphQLClient {
     return headers;
   }
 
-  /**
-   * 发送 GraphQL 请求
-   */
   async request<T = any>(
     config: GraphQLRequestConfig,
     signal?: AbortSignal,
@@ -81,12 +65,8 @@ class GraphQLClient {
   }
 }
 
-// 导出 GraphQL 客户端实例
 export const graphqlClient = new GraphQLClient();
 
-// ──────────────────────────────────────────────
-// 用户相关类型
-// ──────────────────────────────────────────────
 
 export interface RegisterInput {
   email: string;
@@ -149,9 +129,6 @@ export interface LogoutPayload {
   };
 }
 
-// ──────────────────────────────────────────────
-// 评测平台相关类型
-// ──────────────────────────────────────────────
 
 export interface DomainScore {
   domain: string;
@@ -165,8 +142,8 @@ export interface ModelItem {
   vendor: string;
   series: string;
   version: string;
-  accessType: string; // selfhost | api | opensource
-  backend: string; // vllm | trtllm | tgi | api
+  accessType: string;
+  backend: string;
   paramsB: number | null;
   contextLength: number | null;
   createdAt: string | null;
@@ -191,7 +168,7 @@ export interface EvalTaskItem {
   modelVendor: string;
   datasetIds: string[];
   backend: string;
-  status: string; // Draft | Pending | Running | Paused | Done | Failed
+  status: string;
   progress: number;
   fingerprint: string | null;
   error: string | null;
@@ -324,14 +301,8 @@ export interface TaskActionPayload {
   };
 }
 
-// ──────────────────────────────────────────────
-// 用户 GraphQL API
-// ──────────────────────────────────────────────
 
 export const userGraphqlApi = {
-  /**
-   * 用户注册
-   */
   register: async (input: RegisterInput): Promise<RegisterPayload> => {
     const mutation = `
       mutation Register($input: RegisterInput!) {
@@ -355,9 +326,6 @@ export const userGraphqlApi = {
     });
   },
 
-  /**
-   * 用户登录
-   */
   login: async (input: LoginInput): Promise<LoginPayload> => {
     const mutation = `
       mutation Login($input: LoginInput!) {
@@ -381,9 +349,6 @@ export const userGraphqlApi = {
     });
   },
 
-  /**
-   * 忘记密码
-   */
   forgotPassword: async (
     input: ForgotPasswordInput,
   ): Promise<ForgotPasswordPayload> => {
@@ -403,9 +368,6 @@ export const userGraphqlApi = {
     });
   },
 
-  /**
-   * 用户登出
-   */
   logout: async (): Promise<LogoutPayload> => {
     const mutation = `
       mutation Logout {
@@ -426,14 +388,8 @@ export const userGraphqlApi = {
   },
 };
 
-// ──────────────────────────────────────────────
-// 评测平台 GraphQL API
-// ──────────────────────────────────────────────
 
 export const evalGraphqlApi = {
-  /**
-   * 模型列表
-   */
   listModels: async (
     vendor?: string,
     accessType?: string,
@@ -461,9 +417,6 @@ export const evalGraphqlApi = {
     });
   },
 
-  /**
-   * 数据集列表
-   */
   listDatasets: async (): Promise<ListDatasetsPayload> => {
     const query = `
       query Datasets {
@@ -484,9 +437,6 @@ export const evalGraphqlApi = {
     });
   },
 
-  /**
-   * 评测任务列表
-   */
   listTasks: async (status?: string): Promise<ListTasksPayload> => {
     const query = `
       query Tasks($status: String) {
@@ -515,9 +465,6 @@ export const evalGraphqlApi = {
     });
   },
 
-  /**
-   * 任务详情
-   */
   getTaskDetail: async (taskUid: string): Promise<TaskDetailPayload> => {
     const query = `
       query TaskDetail($taskUid: String!) {
@@ -546,9 +493,6 @@ export const evalGraphqlApi = {
     });
   },
 
-  /**
-   * 任务报告
-   */
   getTaskReport: async (taskUid: string): Promise<TaskReportPayload> => {
     const query = `
       query TaskReport($taskUid: String!) {
@@ -579,9 +523,6 @@ export const evalGraphqlApi = {
     });
   },
 
-  /**
-   * 评分-成本图谱
-   */
   getScoreCostGraph: async (
     filter?: ScoreGraphFilterInput,
   ): Promise<ScoreCostGraphPayload> => {
@@ -624,9 +565,6 @@ export const evalGraphqlApi = {
     });
   },
 
-  /**
-   * 注册模型
-   */
   registerModel: async (
     input: RegisterModelInput,
   ): Promise<RegisterModelPayload> => {
@@ -657,9 +595,6 @@ export const evalGraphqlApi = {
     });
   },
 
-  /**
-   * 创建评测任务
-   */
   createTask: async (input: CreateTaskInput): Promise<CreateTaskPayload> => {
     const mutation = `
       mutation CreateTask($input: CreateTaskInput!) {
@@ -692,9 +627,6 @@ export const evalGraphqlApi = {
     });
   },
 
-  /**
-   * 暂停任务
-   */
   pauseTask: async (taskUid: string): Promise<TaskActionPayload> => {
     const mutation = `
       mutation PauseTask($taskUid: String!) {
@@ -712,9 +644,6 @@ export const evalGraphqlApi = {
     });
   },
 
-  /**
-   * 续跑任务
-   */
   resumeTask: async (taskUid: string): Promise<TaskActionPayload> => {
     const mutation = `
       mutation ResumeTask($taskUid: String!) {

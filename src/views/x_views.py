@@ -63,11 +63,7 @@ from x_models.id_x_009.src.schemas.x_schemas import (
 )
 
 
-# ==========================================
-# 常量：能力域与聚合权重
-# ==========================================
 
-# (字段后缀, 展示名, 聚合权重)
 DOMAIN_SPECS: List[Tuple[str, str, float]] = [
     ("reasoning", "客观知识与推理", 0.30),
     ("language", "语言与生成", 0.20),
@@ -77,13 +73,9 @@ DOMAIN_SPECS: List[Tuple[str, str, float]] = [
     ("business", "业务专项", 0.10),
 ]
 
-# 模拟执行的步进间隔（秒）：每 tick 推进一次进度
 _TICK_SECONDS = 1.0
 
-# 模型画像：(基础能力分, 每任务成本 USD)
-# 新任务按画像 + 指纹种子抖动生成结果，保证可复现风格。
 _MODEL_PROFILES: Dict[str, Tuple[float, float]] = {
-    # ── 原始 16 模型 ──
     "gpt-5.2": (92.0, 5.50),
     "gpt-5-mini": (84.0, 0.55),
     "claude-opus-4.6": (91.0, 8.00),
@@ -100,7 +92,6 @@ _MODEL_PROFILES: Dict[str, Tuple[float, float]] = {
     "glm-5": (82.0, 0.30),
     "minimax-m2.5": (78.0, 0.10),
     "mistral-large-3": (77.0, 0.50),
-    # ── 扩展 18 模型：拉满评分 × 成本分布 ──
     "gpt-5.2-pro": (96.0, 22.00),
     "o3-pro": (94.0, 18.00),
     "claude-opus-4.6-x": (93.0, 15.00),
@@ -121,7 +112,6 @@ _MODEL_PROFILES: Dict[str, Tuple[float, float]] = {
     "internlm-3-8b": (58.0, 0.025),
 }
 
-# 新注册模型的厂商默认画像
 _VENDOR_DEFAULT_PROFILE: Dict[str, Tuple[float, float]] = {
     "OpenAI": (86.0, 2.00),
     "Anthropic": (88.0, 3.00),
@@ -140,9 +130,6 @@ _VENDOR_DEFAULT_PROFILE: Dict[str, Tuple[float, float]] = {
 }
 
 
-# ==========================================
-# 认证辅助函数
-# ==========================================
 
 
 async def hash_password(password: str) -> str:
@@ -182,9 +169,6 @@ async def verify_token(token: str) -> Optional[User]:
         return None
 
 
-# ==========================================
-# 类型转换辅助
-# ==========================================
 
 
 def _iso(dt: Optional[datetime]) -> Optional[str]:
@@ -257,9 +241,6 @@ def _result_domain_scores(r: EvalResult) -> List[DomainScoreType]:
     ]
 
 
-# ==========================================
-# Query 视图 —— 基础
-# ==========================================
 
 
 async def view_health() -> HealthType:
@@ -295,9 +276,6 @@ async def view_datasets() -> List[DatasetType]:
         return []
 
 
-# ==========================================
-# Mutation 视图 —— 认证
-# ==========================================
 
 
 async def view_login(input: LoginInput) -> AuthResponseType:
@@ -364,7 +342,6 @@ async def view_register(input: RegisterInput) -> AuthResponseType:
                 email=input.email,
                 password_hash=password_hash,
                 phone=input.phone,
-                # demo 直接激活，注册即可登录体验
                 is_active=True,
             )
             session.add(new_user)
@@ -440,9 +417,6 @@ async def view_logout() -> AuthResponseType:
         return AuthResponseType(success=False, message=f"登出失败: {str(e)}")
 
 
-# ==========================================
-# Mutation 视图 —— 模型注册
-# ==========================================
 
 
 async def view_register_model(input: RegisterModelInput) -> RegisterModelResultType:
@@ -484,9 +458,6 @@ async def view_register_model(input: RegisterModelInput) -> RegisterModelResultT
         return RegisterModelResultType(success=False, message=f"注册失败: {str(e)}")
 
 
-# ==========================================
-# 评测任务 —— 创建与模拟执行
-# ==========================================
 
 
 def _build_fingerprint(
@@ -534,7 +505,6 @@ async def view_create_task(input: CreateTaskInput) -> CreateTaskResultType:
                 model_id=model.id,
                 dataset_ids=json.dumps(input.dataset_ids),
                 backend=input.backend or "vllm",
-                # 直接置 Pending，由守护线程接管推进（Draft -> Pending 即时完成）
                 status="Pending",
                 progress=0,
                 fingerprint=fingerprint,
@@ -637,7 +607,6 @@ async def _run_task(maker: async_sessionmaker, task_id: int) -> None:
                     return
 
                 if task.status == "Paused":
-                    # 断点保持：等待 resume（视图将状态改回 Running）
                     continue
 
                 if task.status == "Pending":
@@ -646,7 +615,6 @@ async def _run_task(maker: async_sessionmaker, task_id: int) -> None:
                     await session.commit()
                     continue
 
-                # Running：推进进度
                 if rng is None:
                     rng = random.Random(f"{task.task_uid}:{task.fingerprint}")
                     model = task.model
@@ -715,9 +683,6 @@ def _generate_result(task: EvalTask, model: Optional[Model], rng: random.Random)
     )
 
 
-# ==========================================
-# Query 视图 —— 任务
-# ==========================================
 
 
 async def view_tasks(status: Optional[str] = None) -> List[EvalTaskType]:
@@ -752,9 +717,6 @@ async def view_task_detail(task_uid: str) -> Optional[EvalTaskType]:
         return None
 
 
-# ==========================================
-# Mutation 视图 —— 任务动作（断点续跑）
-# ==========================================
 
 
 async def view_pause_task(task_uid: str) -> TaskActionResultType:
@@ -799,7 +761,6 @@ async def view_resume_task(task_uid: str) -> TaskActionResultType:
                     success=True, message="任务已从断点恢复", status="Running"
                 )
             if task.status == "Failed":
-                # 失败重跑：从头再来，由新守护线程接管
                 task.status = "Pending"
                 task.progress = 0
                 task.error = None
@@ -809,7 +770,6 @@ async def view_resume_task(task_uid: str) -> TaskActionResultType:
                     success=True, message="任务已重新排队", status="Pending"
                 )
             if task.status == "Pending":
-                # 服务重启后遗留在 Pending 的任务（旧执行线程已消亡），重新接管
                 _start_runner(task.id)
                 return TaskActionResultType(
                     success=True, message="任务执行器已接管", status="Pending"
@@ -824,9 +784,6 @@ async def view_resume_task(task_uid: str) -> TaskActionResultType:
         return TaskActionResultType(success=False, message=f"恢复失败: {str(e)}")
 
 
-# ==========================================
-# Query 视图 —— 评测报告
-# ==========================================
 
 
 async def view_task_report(task_uid: str) -> TaskReportType:
@@ -874,9 +831,6 @@ async def view_task_report(task_uid: str) -> TaskReportType:
         return TaskReportType(success=False, message=f"获取报告失败: {str(e)}")
 
 
-# ==========================================
-# Query 视图 —— 模型评分图谱
-# ==========================================
 
 
 async def view_score_cost_graph(
@@ -892,7 +846,6 @@ async def view_score_cost_graph(
             )
             rows = result.scalars().all()
 
-            # 每个模型取最新一条结果
             latest: Dict[int, EvalResult] = {}
             for r in rows:
                 if r.model_id not in latest:
@@ -936,7 +889,6 @@ async def view_score_cost_graph(
                     )
                 )
 
-        # 性价比排名：评分 / 成本 降序
         ranked = sorted(
             points,
             key=lambda p: (p.composite_score / max(p.cost_per_task, 1e-6)),
@@ -945,8 +897,6 @@ async def view_score_cost_graph(
         for idx, p in enumerate(ranked, start=1):
             p.value_rank = idx
 
-        # Pareto 前沿：按成本升序扫描，综合评分持续刷新的点构成前沿
-        # （「同成本最优评分」的包络，越靠左上越优）
         ordered = sorted(points, key=lambda p: (p.cost_per_task, -p.composite_score))
         frontier: List[FrontierPointType] = []
         best_y = float("-inf")

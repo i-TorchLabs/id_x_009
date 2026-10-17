@@ -20,9 +20,6 @@ import {
 } from "@/api/graphql";
 import { getTokens, SF_DISPLAY, SF_TEXT, SF_MONO } from "@/utils/tokens";
 
-// ──────────────────────────────────────────────
-// 常量
-// ──────────────────────────────────────────────
 
 const ease = [0.25, 0.4, 0.25, 1] as [number, number, number, number];
 const ERROR_COLOR = "#dc2626";
@@ -40,33 +37,22 @@ const ACCESS_TYPES = ["api", "opensource", "selfhost"];
 const BACKENDS = ["vllm", "trtllm", "tgi", "api"];
 const TASK_STATUSES = ["Pending", "Running", "Paused", "Done", "Failed"];
 
-// 厂商调色板：学术规范但提亮饱和与明度，保证高对比与可读性。
-// 设计原则：
-//   1. 色相均衡分布在色环上，覆盖蓝/红/绿/橙/紫/粉/青/黄/灰紫/棕；
-//   2. 序列内严格交替冷暖，使任意相邻序号都具备高感知距离；
-//   3. 明度统一在 ~50-55%、饱和度 ~60-70%，明亮清晰而不刺眼；
-//   4. 保持学术参考刊物（Nature / Science 图表）的克制底色，避免荧光感。
 const VENDOR_PALETTE = [
-  "#2E6FB7", // Academic blue    — 冷：经典学术主蓝
-  "#C0392B", // Vermilion        — 暖：朱红
-  "#27946C", // Sea green        — 冷：海绿
-  "#D17B2C", // Pumpkin          — 暖：南瓜橙
-  "#7D54B5", // Royalty purple   — 冷：皇室紫
-  "#D14A6F", // Carmine pink     — 暖：胭脂粉
-  "#1A8AA0", // Teal cyan        — 冷：青蓝
-  "#C9A227", // Old gold         — 暖：古金
-  "#8E7CC3", // Lavender slate   — 冷：薰衣草灰紫
-  "#A0522D", // Sienna           — 暖：赭褐
+  "#2E6FB7",
+  "#C0392B",
+  "#27946C",
+  "#D17B2C",
+  "#7D54B5",
+  "#D14A6F",
+  "#1A8AA0",
+  "#C9A227",
+  "#8E7CC3",
+  "#A0522D",
 ];
 
-// Pareto 前沿用色：深邃的暗琥珀，与所有厂商点（明度均在 50+）形成
-// 明显明度反差，作为参考边界突出而仍属学术色调。
 const PARETO_COLOR = "#1A1208";
-// 气泡不透明度：饱和色相 + 高不透明度，最大化清晰度。
 const BUBBLE_FILL_OPACITY = 0.92;
-// 同系列版本连线：作为次级视觉层级，半透明以让位给气泡。
 const SERIES_STROKE_OPACITY = 0.65;
-// Pareto 前沿线：高不透明度以承担"边界"语义。
 const PARETO_STROKE_OPACITY = 0.92;
 
 function vendorColor(vendor: string, vendors: string[]): string {
@@ -88,9 +74,6 @@ function formatCount(n: number): string {
   return n.toLocaleString("en-US");
 }
 
-// ──────────────────────────────────────────────
-// 通用小组件（定义在组件外避免重挂载）
-// ──────────────────────────────────────────────
 
 const Card = ({
   children,
@@ -225,8 +208,6 @@ const inputBaseStyle = (
   padding: "9px 12px",
   outline: "none",
   width: "100%",
-  // content-box 下 padding+border 会把输入框撑出父容器 26px，
-  // 用 border-box 保证表单控件始终约束在卡片内边距之内
   boxSizing: "border-box",
 });
 
@@ -273,9 +254,6 @@ const DomainScoreBar = ({
   </div>
 );
 
-// ──────────────────────────────────────────────
-// Home 主组件
-// ──────────────────────────────────────────────
 
 export default function Home() {
   const router = useRouter();
@@ -285,12 +263,9 @@ export default function Home() {
   const t = getTokens(isDark);
   const { bg, fg, fg2, fg3, fg4, card, inputBg, inputBorder, divider, shadow, navBg, accent, accentFg, badgeBg, error, errorBg, errorBorder } = t;
 
-  // 卡片组合阴影：漫射投影 + 顶缘 1px 内高光，模拟玻璃/金属材质的受光边，
-  // 保持 UI.md 单一柔和投影哲学的同时显著提升材质高级感。
   const cardHighlight = isDark ? "inset 0 1px 0 rgba(255,255,255,0.07)" : "inset 0 1px 0 rgba(255,255,255,0.9)";
   const cardShadow = `${shadow}, ${cardHighlight}`;
 
-  // ── 全局状态 ──
   const [activeTab, setActiveTab] = useState<TabKey>("graph");
   const [userEmail, setUserEmail] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -323,7 +298,6 @@ export default function Home() {
     router.push("/f/login");
   }, [router]);
 
-  // ── 页签 1：评分图谱 ──
   const [graphData, setGraphData] = useState<{ points: ScorePoint[]; frontier: { x: number; y: number }[]; vendors: string[] }>({ points: [], frontier: [], vendors: [] });
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphError, setGraphError] = useState("");
@@ -341,8 +315,6 @@ export default function Home() {
   const canvasResizeRef = useRef<ResizeObserver | null>(null);
   const [canvasSize, setCanvasSize] = useState({ w: 720, h: 480 });
 
-  // 回调 ref：画布 div 挂载（含加载态切换后）即绑定 ResizeObserver，
-  // 避免 useEffect 在 ref 为 null 的加载态执行后不再重跑、尺寸停留在初始值的问题。
   const observeCanvas = useCallback((el: HTMLDivElement | null) => {
     if (canvasResizeRef.current) {
       canvasResizeRef.current.disconnect();
@@ -411,12 +383,11 @@ export default function Home() {
     void loadGraph();
   }, [loadGraph]);
 
-  // ── SVG 画布几何计算 ──
   const geom = useMemo(() => {
     const { points, frontier } = graphData;
     const W = canvasSize.w;
     const H = canvasSize.h;
-    const ML = 56; // margin left
+    const ML = 56;
     const MR = 24;
     const MT = 24;
     const MB = 52;
@@ -463,7 +434,6 @@ export default function Home() {
     for (let v = yMin; v <= yMax; v += yStep) yTicks.push(v);
     if (yTicks[yTicks.length - 1] !== yMax) yTicks.push(yMax);
 
-    // 同系列版本连线（保留 vendor 以便上色）
     const groups = new Map<string, ScorePoint[]>();
     for (const p of points) {
       const key = `${p.vendor}::${p.series}`;
@@ -485,7 +455,6 @@ export default function Home() {
     return { W, H, ML, MR, MT, MB, plotW, plotH, xMin: cMin, xMax: cMax, yMin, yMax, logMin, logMax, xTicks, yTicks, toX, toY, seriesLines, frontierPts };
   }, [graphData, canvasSize]);
 
-  // ── 对比清单 ──
   const addToCompare = useCallback(
     (p: ScorePoint) => {
       if (compareList.some((x) => x.modelId === p.modelId)) return;
@@ -513,7 +482,6 @@ export default function Home() {
     return names;
   }, [compareList]);
 
-  // ── 页签 2：评测任务 ──
   const [tasks, setTasks] = useState<EvalTaskItem[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksError, setTasksError] = useState("");
@@ -680,7 +648,6 @@ export default function Home() {
     [loadTasks, taskStatusFilter],
   );
 
-  // ── 页签 3：模型注册 ──
   const [models, setModels] = useState<ModelItem[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState("");
@@ -781,7 +748,6 @@ export default function Home() {
     }
   }, [rmName, rmVendor, rmSeries, rmVersion, rmAccessType, rmBackend, rmParamsB, rmContextLength, loadModels]);
 
-  // ── 页签 4：数据集 ──
   const [datasets, setDatasets] = useState<DatasetItem[]>([]);
   const [datasetsLoading, setDatasetsLoading] = useState(false);
   const [datasetsError, setDatasetsError] = useState("");
@@ -805,13 +771,10 @@ export default function Home() {
     }
   }, [activeTab, loadDatasets]);
 
-  // ──────────────────────────────────────────────
-  // 渲染：页签 1 筛选栏
-  // ──────────────────────────────────────────────
 
   const filterPanel = (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-      {/* 可滚动的筛选条件区域 */}
+      { }
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0, display: "flex", flexDirection: "column", gap: "16px" }}>
         <div>
           <FieldLabel color={fg3}>厂商</FieldLabel>
@@ -899,7 +862,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 固定在底部的操作按钮 */}
+      { }
       <div
         style={{
           display: "flex",
@@ -920,9 +883,6 @@ export default function Home() {
     </div>
   );
 
-  // ──────────────────────────────────────────────
-  // 渲染：页签 1 详情卡
-  // ──────────────────────────────────────────────
 
   const detailPanel = (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -1033,7 +993,7 @@ export default function Home() {
         </>
       )}
 
-      {/* 对比清单入口：独立弹窗承载对比内容 */}
+      { }
       {compareList.length > 0 && (
         <div style={{ borderTop: `1px solid ${divider}`, paddingTop: "16px" }}>
           <FieldLabel color={fg3}>对比清单 ({compareList.length}/4)</FieldLabel>
@@ -1099,13 +1059,10 @@ export default function Home() {
     </div>
   );
 
-  // ──────────────────────────────────────────────
-  // 渲染：页签 1 画布
-  // ──────────────────────────────────────────────
 
   const canvasPanel = (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", minHeight: "420px" }}>
-      {/* 图例条：置于画布上方独立区域，不再浮层遮挡图表内容 */}
+      { }
       {graphData.vendors.length > 0 && (
         <div
           className="flex flex-wrap items-center"
@@ -1160,7 +1117,7 @@ export default function Home() {
         </div>
       ) : (
         <svg width={geom.W} height={geom.H} style={{ display: "block" }}>
-          {/* 网格线 */}
+          { }
           {geom.yTicks.map((v) => (
             <line
               key={`gy-${v}`}
@@ -1186,11 +1143,11 @@ export default function Home() {
             />
           ))}
 
-          {/* 坐标轴 */}
+          { }
           <line x1={geom.ML} x2={geom.W - geom.MR} y1={geom.H - geom.MB} y2={geom.H - geom.MB} stroke={fg} strokeOpacity={0.25} strokeWidth={1} />
           <line x1={geom.ML} x2={geom.ML} y1={geom.MT} y2={geom.H - geom.MB} stroke={fg} strokeOpacity={0.25} strokeWidth={1} />
 
-          {/* 刻度标签 */}
+          { }
           {geom.xTicks.map((e) => {
             const v = Math.pow(10, e);
             const x = geom.toX(v);
@@ -1221,7 +1178,7 @@ export default function Home() {
             </text>
           ))}
 
-          {/* 轴标题 */}
+          { }
           <text
             x={geom.ML + geom.plotW / 2}
             y={geom.H - 8}
@@ -1240,7 +1197,7 @@ export default function Home() {
             综合评分
           </text>
 
-          {/* 同系列版本连线 */}
+          { }
           {geom.seriesLines.map((line, i) => (
             <polyline
               key={`series-${i}`}
@@ -1252,20 +1209,18 @@ export default function Home() {
             />
           ))}
 
-          {/* Pareto 前沿 */}
+          { }
           {geom.frontierPts.length >= 2 && (() => {
             const pts = geom.frontierPts;
             const bottom = geom.H - geom.MB;
             const right = geom.W - geom.MR;
-            // 阶梯路径：前沿点支配其右下方矩形区域（更贵且更差），
-            // 阶梯线即"被支配区域"的上边界，比斜线直连更贴合 Pareto 语义。
             let stair = `M ${pts[0].x},${pts[0].y}`;
             for (let i = 1; i < pts.length; i++) stair += ` H ${pts[i].x} V ${pts[i].y}`;
             const area = `${stair} H ${right} V ${bottom} H ${pts[0].x} Z`;
             const last = pts[pts.length - 1];
             return (
               <>
-                {/* 被支配区域：前沿右下方浅色遮罩，直观表达"此区域内均非最优" */}
+                { }
                 <motion.path
                   d={area}
                   fill={PARETO_COLOR}
@@ -1285,7 +1240,7 @@ export default function Home() {
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.8, delay: 0.3, ease }}
                 />
-                {/* 前沿顶点标记 */}
+                { }
                 {pts.map((p, i) => (
                   <circle
                     key={`fp-${i}`}
@@ -1297,7 +1252,7 @@ export default function Home() {
                     style={{ pointerEvents: "none" }}
                   />
                 ))}
-                {/* 标注：置于末端顶点上方并右对齐，防止溢出画布 */}
+                { }
                 <text
                   x={Math.min(last.x + 4, right)}
                   y={last.y - 10}
@@ -1306,7 +1261,7 @@ export default function Home() {
                 >
                   Pareto 前沿 · 同价位最优
                 </text>
-                {/* 被支配区域文字标注 */}
+                { }
                 <text
                   x={right - 6}
                   y={bottom - 8}
@@ -1319,7 +1274,7 @@ export default function Home() {
             );
           })()}
 
-          {/* 悬停十字准线：精密仪器感，指向坐标轴读数 */}
+          { }
           {hoverPoint && (
             <g style={{ pointerEvents: "none" }}>
               <line
@@ -1361,7 +1316,7 @@ export default function Home() {
             </g>
           )}
 
-          {/* 气泡 */}
+          { }
           {graphData.points.map((p, idx) => {
             const cx = geom.toX(p.costPerTask);
             const cy = geom.toY(p.compositeScore);
@@ -1371,7 +1326,7 @@ export default function Home() {
             const r = isHovered ? 12 : 9;
             return (
               <g key={p.modelId}>
-                {/* 悬停/选中光环：柔和辉光提升聚焦感 */}
+                { }
                 {(isHovered || isSelected) && (
                   <circle
                     cx={cx}
@@ -1408,7 +1363,7 @@ export default function Home() {
         </svg>
       )}
 
-      {/* Hover tooltip */}
+      { }
       {hoverPoint && (
         <div
           style={{
@@ -1455,9 +1410,6 @@ export default function Home() {
     </div>
   );
 
-  // ──────────────────────────────────────────────
-  // 渲染：页签 2 评测任务
-  // ──────────────────────────────────────────────
 
   const statusBadge = (status: string) => {
     if (status === "Running") {
@@ -1507,7 +1459,7 @@ export default function Home() {
 
   const tasksPanel = (
     <div>
-      {/* 工具条 */}
+      { }
       <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: "20px" }}>
         <div className="flex items-center gap-3">
           <select
@@ -1532,7 +1484,7 @@ export default function Home() {
         </PillButton>
       </div>
 
-      {/* 表格 */}
+      { }
       {tasksError && (
         <div style={{ fontFamily: SF_TEXT, fontSize: "13px", color: error, marginBottom: "12px" }}>{tasksError}</div>
       )}
@@ -1639,9 +1591,6 @@ export default function Home() {
     </div>
   );
 
-  // ──────────────────────────────────────────────
-  // 渲染：页签 3 模型注册
-  // ──────────────────────────────────────────────
 
   const modelsPanel = (
     <div>
@@ -1730,9 +1679,6 @@ export default function Home() {
     </div>
   );
 
-  // ──────────────────────────────────────────────
-  // 渲染：页签 4 数据集
-  // ──────────────────────────────────────────────
 
   const datasetsPanel = (
     <div>
@@ -1787,9 +1733,6 @@ export default function Home() {
     </div>
   );
 
-  // ──────────────────────────────────────────────
-  // 渲染：新建任务弹层表单
-  // ──────────────────────────────────────────────
 
   const modelVendorGroups = useMemo(() => {
     const map = new Map<string, ModelItem[]>();
@@ -1800,13 +1743,10 @@ export default function Home() {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [ctModels]);
 
-  // ──────────────────────────────────────────────
-  // 主渲染
-  // ──────────────────────────────────────────────
 
   return (
     <div className="h-screen flex flex-col" style={{ background: bg }}>
-      {/* NavBar */}
+      { }
       <nav
         className="flex items-center justify-between shrink-0 z-50"
         style={{
@@ -1820,14 +1760,14 @@ export default function Home() {
       >
         <div className="flex items-center gap-4" style={{ minWidth: 0 }}>
           <div className="flex items-center gap-2.5 shrink-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            { }
             <img src="/favicon.ico" alt="logo" style={{ width: 22, height: 22 }} />
             <span style={{ fontFamily: SF_DISPLAY, fontSize: "16px", fontWeight: 600, color: fg, letterSpacing: "-0.35px", whiteSpace: "nowrap" }}>
               评测平台 · id_x_009
             </span>
           </div>
 
-          {/* 页签 */}
+          { }
           <div className="flex items-center gap-1" style={{ marginLeft: "12px" }}>
             {TABS.map((tab) => {
               const active = activeTab === tab.key;
@@ -1914,7 +1854,7 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* 内容区 */}
+      { }
       <main className="flex-1 min-h-0 overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.div
@@ -1940,20 +1880,18 @@ export default function Home() {
                       display: "grid",
                       gridTemplateColumns: isNarrow ? "1fr" : "220px 1fr 300px",
                       gap: "16px",
-                      // 桌面端三栏等高：统一行高 = 视口高 - 导航 56px - 上下内边距 24px；
-                      // 窄屏保持自适应堆叠。
                       alignItems: isNarrow ? "start" : "stretch",
                       height: isNarrow ? undefined : "calc(100dvh - 80px)",
                     }}
                   >
-                    {/* 左筛选 */}
+                    { }
                     {(!isNarrow || showFilterPanel) && (
                       <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} noPadding style={{ height: isNarrow ? undefined : "100%", minHeight: 0 }}>
                         <div style={{ padding: "20px", height: isNarrow ? undefined : "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>{filterPanel}</div>
                       </Card>
                     )}
 
-                    {/* 中画布 */}
+                    { }
                     <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} noPadding style={{ height: isNarrow ? undefined : "100%", minHeight: isNarrow ? "480px" : 0 }}>
                       <div style={{ padding: "12px", height: isNarrow ? undefined : "100%", boxSizing: "border-box", minHeight: isNarrow ? "480px" : 0, position: "relative" }}>
                         {graphLoading && graphData.points.length === 0 ? (
@@ -1969,7 +1907,7 @@ export default function Home() {
                       </div>
                     </Card>
 
-                    {/* 右详情 */}
+                    { }
                     <Card bg={card} shadow={cardShadow} border={`1px solid ${divider}`} noPadding style={{ height: isNarrow ? undefined : "100%", minHeight: 0 }}>
                         <div style={{ padding: "20px", height: isNarrow ? undefined : "100%", boxSizing: "border-box", overflowY: "auto" }}>{detailPanel}</div>
                     </Card>
@@ -2007,7 +1945,7 @@ export default function Home() {
         </AnimatePresence>
       </main>
 
-      {/* ── 登出确认弹层 ── */}
+      { }
       <Modal state={{ isOpen: showLogoutConfirm, setOpen: setShowLogoutConfirm, open: () => setShowLogoutConfirm(true), close: () => setShowLogoutConfirm(false), toggle: () => setShowLogoutConfirm((prev) => !prev) }}>
         <Modal.Backdrop variant="blur">
           <Modal.Container placement="center" size="sm" className="flex items-center justify-center">
@@ -2051,7 +1989,7 @@ export default function Home() {
         </Modal.Backdrop>
       </Modal>
 
-      {/* ── 新建任务弹层 ── */}
+      { }
       <Modal state={{ isOpen: showCreateTask, setOpen: setShowCreateTask, open: () => setShowCreateTask(true), close: () => setShowCreateTask(false), toggle: () => setShowCreateTask((prev) => !prev) }}>
         <Modal.Backdrop variant="blur">
           <Modal.Container placement="center" size="md" scroll="inside" className="flex items-center justify-center">
@@ -2230,7 +2168,7 @@ export default function Home() {
         </Modal.Backdrop>
       </Modal>
 
-      {/* ── 报告弹层 ── */}
+      { }
       <Modal state={{ isOpen: reportTaskUid !== null, setOpen: (open: boolean) => { if (!open) setReportTaskUid(null); }, open: () => {}, close: () => setReportTaskUid(null), toggle: () => setReportTaskUid((prev) => (prev ? null : prev)) }}>
         <Modal.Backdrop variant="blur">
           <Modal.Container placement="center" size="md" scroll="inside" className="flex items-center justify-center">
@@ -2355,7 +2293,7 @@ export default function Home() {
         </Modal.Backdrop>
       </Modal>
 
-      {/* ── 模型对比弹层 ── */}
+      { }
       <Modal state={{ isOpen: showCompare, setOpen: setShowCompare, open: () => setShowCompare(true), close: () => setShowCompare(false), toggle: () => setShowCompare((prev) => !prev) }}>
         <Modal.Backdrop variant="blur">
           <Modal.Container placement="center" size="lg" scroll="inside" className="flex items-center justify-center">
@@ -2382,7 +2320,7 @@ export default function Home() {
                 </Modal.Heading>
               </Modal.Header>
               <Modal.Body style={{ padding: 0 }}>
-                {/* 已选模型 chips */}
+                { }
                 <div className="flex flex-wrap gap-1.5" style={{ marginBottom: "16px" }}>
                   {compareList.map((p) => (
                     <span
@@ -2513,7 +2451,7 @@ export default function Home() {
         </Modal.Backdrop>
       </Modal>
 
-      {/* ── 注册模型弹层 ── */}
+      { }
       <Modal state={{ isOpen: showRegisterModel, setOpen: setShowRegisterModel, open: () => setShowRegisterModel(true), close: () => setShowRegisterModel(false), toggle: () => setShowRegisterModel((prev) => !prev) }}>
         <Modal.Backdrop variant="blur">
           <Modal.Container placement="center" size="md" scroll="inside" className="flex items-center justify-center">

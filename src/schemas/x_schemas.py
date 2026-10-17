@@ -9,9 +9,6 @@ class HealthType:
     service: str = strawberry.field(description="服务名称")
 
 
-# ==========================================
-# 认证
-# ==========================================
 
 
 @strawberry.input
@@ -61,9 +58,6 @@ class ForgotPasswordResponseType:
     )
 
 
-# ==========================================
-# 模型注册中心
-# ==========================================
 
 
 @strawberry.type
@@ -109,9 +103,6 @@ class RegisterModelResultType:
     model: Optional[ModelType] = strawberry.field(default=None, description="注册的模型")
 
 
-# ==========================================
-# 数据集
-# ==========================================
 
 
 @strawberry.type
@@ -125,9 +116,6 @@ class DatasetType:
     description: Optional[str] = strawberry.field(default=None, description="数据集描述")
 
 
-# ==========================================
-# 评测任务
-# ==========================================
 
 
 @strawberry.type
@@ -178,9 +166,6 @@ class TaskActionResultType:
     status: str = strawberry.field(default="", description="动作后的任务状态")
 
 
-# ==========================================
-# 评测结果与报告
-# ==========================================
 
 
 @strawberry.type
@@ -214,9 +199,6 @@ class TaskReportType:
     )
 
 
-# ==========================================
-# 模型评分图谱（综合评分 × 推理成本 + Pareto 前沿）
-# ==========================================
 
 
 @strawberry.type

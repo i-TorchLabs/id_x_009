@@ -47,7 +47,7 @@ export default function LoginForm({
 
   return (
     <div className="w-full max-w-[400px]">
-      {/* Logo */}
+      { }
       <div className="flex justify-center mb-10">
         <div
           className="flex items-center justify-center"
@@ -69,7 +69,7 @@ export default function LoginForm({
         </div>
       </div>
 
-      {/* Header */}
+      { }
       <div className="text-center mb-12">
         <h1
           className="text-[32px] font-semibold mb-3"
@@ -100,9 +100,9 @@ export default function LoginForm({
           void onSubmit(e);
         }}
       >
-        {/* Input Fields Group */}
+        { }
         <div className="mb-2">
-          {/* Email */}
+          { }
           <div className="mb-5">
             <TextField fullWidth variant={emailError ? "secondary" : "primary"}>
               <label
@@ -144,7 +144,7 @@ export default function LoginForm({
             </TextField>
           </div>
 
-          {/* Password */}
+          { }
           <div>
             <TextField fullWidth variant={passwordError ? "secondary" : "primary"}>
               <label
@@ -206,7 +206,7 @@ export default function LoginForm({
           </div>
         </div>
 
-        {/* Options Group */}
+        { }
         <div className="flex items-center justify-between">
           <Checkbox defaultSelected>
             <span
@@ -235,7 +235,7 @@ export default function LoginForm({
           </a>
         </div>
 
-        {/* Error */}
+        { }
         {errorMsg && (
           <div
             className="mb-3 rounded-xl px-4 py-3.5"
@@ -252,7 +252,7 @@ export default function LoginForm({
           </div>
         )}
 
-        {/* Submit */}
+        { }
         <div style={{ paddingTop: "72px", paddingBottom: "16px" }}>
           <Button
             type="submit"
@@ -275,7 +275,7 @@ export default function LoginForm({
         </div>
       </form>
 
-      {/* Footer link */}
+      { }
       <div
         className="text-center mt-10"
         style={{

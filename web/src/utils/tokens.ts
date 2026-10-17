@@ -1,5 +1,3 @@
-// Design tokens per UI.md specification.
-// All components MUST import from here to prevent value drift.
 
 export const SF_DISPLAY = '"SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 export const SF_TEXT = '"SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';

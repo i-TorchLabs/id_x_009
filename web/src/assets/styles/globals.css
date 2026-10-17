@@ -2,7 +2,6 @@
 @import "@heroui/react/styles";
 
 :root {
-    /* ── Apple Color Palette ── */
     --color-pure-black: #000000;
     --color-near-black: #1d1d1f;
     --color-light-gray: #f5f5f7;
@@ -11,30 +10,24 @@
     --color-bright-blue: #2997ff;
     --color-error: #dc2626;
 
-    /* ── Original Left Panel Colors ── */
     --color-bg-dark: #1a1a2e;
     --color-purple-hover: #5b21b6;
     --color-left-bg-start: #d4d0dc;
     --color-left-bg-mid: #c8c4d0;
     --color-left-bg-end: #bbb7c5;
 
-    /* ── Surface & Dark Variants ── */
     --color-dark-surface-1: #272729;
     --color-dark-surface-2: #262628;
     --color-dark-surface-3: #28282a;
 
-    /* ── Button States ── */
     --color-button-active: #ededf2;
     --color-button-default-light: #fafafc;
 
-    /* ── Shadows ── */
     --shadow-card: rgba(0, 0, 0, 0.22) 3px 5px 30px 0px;
 
-    /* ── Focus ── */
     --color-focus: #0071e3;
 }
 
-/* Light theme */
 [data-theme="light"] {
     --bg-primary: #ffffff;
     --bg-secondary: #f5f5f7;
@@ -48,7 +41,6 @@
     --input-bg: #f7f7f8;
 }
 
-/* Dark theme (default) */
 [data-theme="dark"] {
     --bg-primary: #000000;
     --bg-secondary: #161618;
@@ -94,9 +86,7 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Custom Scrollbar ── */
 
-/* For Webkit browsers */
 ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -117,13 +107,11 @@ body {
     background-color: var(--text-muted);
 }
 
-/* For Firefox */
 * {
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) transparent;
 }
 
-/* Dark theme scrollbar */
 [data-theme="dark"] ::-webkit-scrollbar-thumb {
     background-color: #30363d;
 }
@@ -136,7 +124,6 @@ body {
     scrollbar-color: #30363d transparent;
 }
 
-/* Light theme scrollbar */
 [data-theme="light"] ::-webkit-scrollbar-thumb {
     background-color: #d1d5db;
 }
@@ -149,8 +136,6 @@ body {
     scrollbar-color: #d1d5db transparent;
 }
 
-/* ── Data table polish ── */
-/* 行 hover：中性灰，双主题通用，营造数据仪表盘的精密反馈感 */
 [data-row] {
     transition: background-color 0.15s ease;
 }
@@ -159,14 +144,12 @@ body {
     background-color: rgba(127, 127, 127, 0.07);
 }
 
-/* 表格数字等宽对齐，提升数据可读性与专业感 */
 table,
 pre,
 code {
     font-variant-numeric: tabular-nums;
 }
 
-/* 卡片悬浮抬升：克制的 2px 位移，强化材质悬浮感 */
 .lift-card {
     transition:
         transform 0.25s cubic-bezier(0.25, 0.4, 0.25, 1),
@@ -177,7 +160,6 @@ code {
     transform: translateY(-2px);
 }
 
-/* ── Responsive ── */
 
 @media (max-width: 900px) {
     .left-panel {
