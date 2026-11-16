@@ -285,3 +285,31 @@ class EvalResult(Base):
 
     task: Mapped["EvalTask"] = relationship("EvalTask", back_populates="result")
     model: Mapped["Model"] = relationship("Model", back_populates="results")
+
+
+class EvalSampleResult(Base):
+    """Auditable per-sample output for provider-backed evaluations."""
+
+    __tablename__ = "eval_sample_results"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    task_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("eval_tasks.id"), nullable=False, index=True
+    )
+    model_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("models.id"), nullable=False, index=True
+    )
+    sample_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    business_module: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    score: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    score_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    response_id: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    returned_model: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    prompt_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    completion_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    total_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    latency_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, comment="创建时间"
+    )

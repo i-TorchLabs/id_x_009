@@ -6,6 +6,7 @@ import random
 import secrets
 import threading
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import quote_plus
 
@@ -17,6 +18,7 @@ from utils.log_util import get_request_id, logger
 from x_models.id_x_009.src.models.x_models import (
     Dataset,
     EvalResult,
+    EvalSampleResult,
     EvalTask,
     Model,
     PasswordResetToken,
@@ -42,10 +44,21 @@ from x_models.id_x_009.src.schemas.x_schemas import (
     RegisterModelResultType,
     ScoreGraphFilterInput,
     ScoreGraphType,
+    SampleResultType,
     ScorePointType,
     TaskActionResultType,
     TaskReportType,
     UserInfoType,
+)
+from x_models.id_x_009.src.services.evaluation_pipeline import (
+    EvalSample,
+    aggregate_scores,
+    evaluate_samples,
+)
+from x_models.id_x_009.src.services.llm_client import OpenAICompatibleLLMClient
+from x_models.id_x_009.src.services.financebench import (
+    evaluate_financebench_samples,
+    load_financebench_samples,
 )
 
 
@@ -60,6 +73,15 @@ DOMAIN_SPECS: List[Tuple[str, str, float]] = [
 ]
 
 _TICK_SECONDS = 1.0
+_REAL_EVAL_DOMAINS = {key for key, _label, _weight in DOMAIN_SPECS}
+
+
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[middle]
+    return (ordered[middle - 1] + ordered[middle]) / 2
 
 _MODEL_PROFILES: Dict[str, Tuple[float, float]] = {
     "gpt-5.2": (92.0, 5.50),
@@ -562,6 +584,22 @@ def _profile_for(model: Model) -> Tuple[float, float]:
 
 
 async def _run_task(maker: async_sessionmaker, task_id: int) -> None:
+    if os.getenv("ID009_EVAL_MODE", "simulated").strip().lower() == "real":
+        try:
+            await _run_real_task(maker, task_id)
+        except Exception as exc:
+            logger.error(f"真实评测任务 {task_id} 执行异常: {exc}", exc_info=True)
+            async with maker() as session:
+                result = await session.execute(
+                    select(EvalTask).where(EvalTask.id == task_id)
+                )
+                task = result.scalar_one_or_none()
+                if task is not None:
+                    task.status = "Failed"
+                    task.error = str(exc)
+                    await session.commit()
+        return
+
     rng: Optional[random.Random] = None
     model: Optional[Model] = None
 
@@ -623,6 +661,222 @@ async def _run_task(maker: async_sessionmaker, task_id: int) -> None:
             except Exception:
                 pass
             return
+
+
+def _load_real_eval_samples() -> list[EvalSample]:
+    sample_path = os.getenv("ID009_EVAL_SAMPLES_FILE", "").strip()
+    if not sample_path:
+        raise RuntimeError("真实评测需要配置 ID009_EVAL_SAMPLES_FILE")
+
+    path = Path(sample_path)
+    if not path.is_file():
+        raise RuntimeError(f"评测样本文件不存在: {path}")
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"评测样本文件无法读取: {type(exc).__name__}") from exc
+
+    if not isinstance(payload, list) or not payload:
+        raise RuntimeError("评测样本文件必须是非空 JSON 数组")
+
+    samples: list[EvalSample] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            raise RuntimeError("每条评测样本必须是 JSON 对象")
+        samples.append(
+            EvalSample(
+                sample_id=str(item.get("sample_id", "")),
+                domain=str(item.get("domain", "")),
+                prompt=str(item.get("prompt", "")),
+                expected_answer=(
+                    str(item["expected_answer"])
+                    if item.get("expected_answer") is not None
+                    else None
+                ),
+            )
+        )
+    return samples
+
+
+def _load_financebench_eval_samples():
+    sample_path = os.getenv("ID009_EVAL_SAMPLES_FILE", "").strip()
+    if not sample_path:
+        raise RuntimeError("FinanceBench 评测需要配置 ID009_EVAL_SAMPLES_FILE")
+    try:
+        return load_financebench_samples(sample_path)
+    except (OSError, UnicodeDecodeError, ValueError, TypeError) as exc:
+        raise RuntimeError(f"FinanceBench 样本文件无法读取: {type(exc).__name__}") from exc
+
+
+def _financebench_temperature(model_name: str) -> float:
+    """Return provider-compatible sampling temperature for a model."""
+    if model_name.strip().lower() == "kimi-k3.1-pro":
+        return 1.0
+    return 0.0
+
+
+def _real_eval_cost(evaluations) -> float:
+    try:
+        input_rate = float(os.getenv("ID009_LLM_INPUT_COST_PER_1K_TOKENS", ""))
+        output_rate = float(os.getenv("ID009_LLM_OUTPUT_COST_PER_1K_TOKENS", ""))
+    except ValueError as exc:
+        raise RuntimeError("LLM token pricing environment variables格式不正确") from exc
+    if input_rate < 0 or output_rate < 0:
+        raise RuntimeError("LLM token pricing cannot be negative")
+
+    prompt_tokens = sum(item.prompt_tokens or 0 for item in evaluations)
+    completion_tokens = sum(item.completion_tokens or 0 for item in evaluations)
+    if not evaluations or (prompt_tokens == 0 and completion_tokens == 0):
+        raise RuntimeError("真实评测缺少 token usage，无法计算成本")
+    return round(
+        prompt_tokens / 1000.0 * input_rate
+        + completion_tokens / 1000.0 * output_rate,
+        6,
+    )
+
+
+def _real_eval_cost_from_records(records) -> float:
+    try:
+        input_rate = float(os.getenv("ID009_LLM_INPUT_COST_PER_1K_TOKENS", ""))
+        output_rate = float(os.getenv("ID009_LLM_OUTPUT_COST_PER_1K_TOKENS", ""))
+    except ValueError as exc:
+        raise RuntimeError("LLM token pricing environment variables格式不正确") from exc
+    if input_rate < 0 or output_rate < 0:
+        raise RuntimeError("LLM token pricing cannot be negative")
+    prompt_tokens = sum(item["prompt_tokens"] or 0 for item in records)
+    completion_tokens = sum(item["completion_tokens"] or 0 for item in records)
+    if not records or (prompt_tokens == 0 and completion_tokens == 0):
+        raise RuntimeError("FinanceBench 评测缺少 token usage，无法计算成本")
+    return round(
+        prompt_tokens / 1000.0 * input_rate
+        + completion_tokens / 1000.0 * output_rate,
+        6,
+    )
+
+
+async def _run_real_task(maker: async_sessionmaker, task_id: int) -> None:
+    async with maker() as session:
+        result = await session.execute(
+            select(EvalTask)
+            .options(selectinload(EvalTask.model))
+            .where(EvalTask.id == task_id)
+        )
+        task = result.scalar_one_or_none()
+        if task is None:
+            return
+        if task.status in {"Failed", "Done"}:
+            return
+
+        task.status = "Running"
+        task.progress = max(task.progress or 0, 1)
+        await session.commit()
+
+        evaluation_format = os.getenv("ID009_EVAL_FORMAT", "six_domain").strip().lower()
+        if evaluation_format == "financebench":
+            finance_samples = _load_financebench_eval_samples()
+            async with OpenAICompatibleLLMClient() as client:
+                sample_results = await evaluate_financebench_samples(
+                    client,
+                    model=task.model.name,
+                    samples=finance_samples,
+                    temperature=_financebench_temperature(task.model.name),
+                )
+            for item in sample_results:
+                score_info = item["score"]
+                session.add(
+                    EvalSampleResult(
+                        task_id=task.id,
+                        model_id=task.model_id,
+                        sample_id=item["sample_id"],
+                        business_module=item["business_module"],
+                        answer=item["answer"],
+                        score=score_info["score"],
+                        score_status=score_info["status"],
+                        response_id=item["response_id"],
+                        returned_model=item["returned_model"],
+                        prompt_tokens=item["prompt_tokens"],
+                        completion_tokens=item["completion_tokens"],
+                        total_tokens=item["total_tokens"],
+                        latency_ms=item["latency_ms"],
+                    )
+                )
+            if not sample_results:
+                raise RuntimeError("FinanceBench 样本列表不能为空")
+            scores = [item["score"]["score"] for item in sample_results]
+            cost_per_task = _real_eval_cost_from_records(sample_results)
+            task.progress = 100
+            task.status = "Done"
+            session.add(
+                EvalResult(
+                    task_id=task.id,
+                    model_id=task.model_id,
+                    score_reasoning=0,
+                    score_language=0,
+                    score_alignment=0,
+                    score_longctx=0,
+                    score_multimodal=0,
+                    score_business=round(sum(scores) / len(scores), 2),
+                    composite_score=round(sum(scores) / len(scores), 2),
+                    cost_per_task=cost_per_task,
+                    latency_p50=round(
+                        _median([item["latency_ms"] for item in sample_results]), 3
+                    ),
+                    throughput=None,
+                )
+            )
+            await session.commit()
+            logger.info(f"{get_request_id()}FinanceBench 评测任务完成: {task.task_uid}")
+            return
+
+        samples = _load_real_eval_samples()
+        if {sample.domain for sample in samples} != _REAL_EVAL_DOMAINS:
+            raise RuntimeError(
+                "真实评测样本必须覆盖六个能力域: "
+                + ", ".join(sorted(_REAL_EVAL_DOMAINS))
+            )
+
+        async with OpenAICompatibleLLMClient() as client:
+            evaluations = await evaluate_samples(
+                client,
+                model=task.model.name,
+                samples=samples,
+                temperature=0.0,
+                max_tokens=2048,
+            )
+
+        aggregate = aggregate_scores(
+            evaluations,
+            {key: weight for key, _label, weight in DOMAIN_SPECS},
+        )
+        domain_scores = aggregate["domain_scores"]
+        if set(domain_scores) != _REAL_EVAL_DOMAINS:
+            raise RuntimeError("真实评测结果缺少可评分的能力域")
+        cost_per_task = _real_eval_cost(evaluations)
+
+        task.progress = 100
+        task.status = "Done"
+        session.add(
+            EvalResult(
+                task_id=task.id,
+                model_id=task.model_id,
+                score_reasoning=domain_scores["reasoning"],
+                score_language=domain_scores["language"],
+                score_alignment=domain_scores["alignment"],
+                score_longctx=domain_scores["longctx"],
+                score_multimodal=domain_scores["multimodal"],
+                score_business=domain_scores["business"],
+                composite_score=aggregate["composite_score"],
+                cost_per_task=cost_per_task,
+                latency_p50=round(
+                    _median([item.latency_ms for item in evaluations]),
+                    3,
+                ),
+                throughput=None,
+            )
+        )
+        await session.commit()
+        logger.info(f"{get_request_id()}真实评测任务完成: {task.task_uid}")
 
 
 def _generate_result(task: EvalTask, model: Optional[Model], rng: random.Random) -> EvalResult:
@@ -775,6 +1029,27 @@ async def view_task_report(task_uid: str) -> TaskReportType:
                 return TaskReportType(success=False, message="任务不存在")
 
             r = task.result
+            sample_query = await session.execute(
+                select(EvalSampleResult)
+                .where(EvalSampleResult.task_id == task.id)
+                .order_by(EvalSampleResult.id)
+            )
+            sample_results = [
+                SampleResultType(
+                    sample_id=item.sample_id,
+                    business_module=item.business_module,
+                    answer=item.answer,
+                    score=item.score,
+                    score_status=item.score_status,
+                    response_id=item.response_id,
+                    returned_model=item.returned_model,
+                    prompt_tokens=item.prompt_tokens,
+                    completion_tokens=item.completion_tokens,
+                    total_tokens=item.total_tokens,
+                    latency_ms=item.latency_ms,
+                )
+                for item in sample_query.scalars().all()
+            ]
             if r is None:
                 return TaskReportType(
                     success=False,
@@ -784,6 +1059,7 @@ async def view_task_report(task_uid: str) -> TaskReportType:
                     model_name=task.model.name if task.model else "",
                     status=task.status,
                     fingerprint=task.fingerprint,
+                    sample_results=sample_results,
                 )
 
             return TaskReportType(
@@ -799,6 +1075,7 @@ async def view_task_report(task_uid: str) -> TaskReportType:
                 throughput=r.throughput,
                 domain_scores=_result_domain_scores(r),
                 fingerprint=task.fingerprint,
+                sample_results=sample_results,
             )
     except Exception as e:
         logger.error(f"{get_request_id()}获取评测报告失败: {e}", exc_info=True)

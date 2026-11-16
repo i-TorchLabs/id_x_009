@@ -176,6 +176,21 @@ class DomainScoreType:
 
 
 @strawberry.type
+class SampleResultType:
+    sample_id: str = strawberry.field(description="样本标识")
+    business_module: Optional[str] = strawberry.field(default=None, description="业务模块")
+    answer: str = strawberry.field(description="模型回答")
+    score: float = strawberry.field(description="样本得分")
+    score_status: str = strawberry.field(description="评分状态")
+    response_id: Optional[str] = strawberry.field(default=None, description="上游响应标识")
+    returned_model: Optional[str] = strawberry.field(default=None, description="实际返回模型")
+    prompt_tokens: Optional[int] = strawberry.field(default=None)
+    completion_tokens: Optional[int] = strawberry.field(default=None)
+    total_tokens: Optional[int] = strawberry.field(default=None)
+    latency_ms: Optional[float] = strawberry.field(default=None)
+
+
+@strawberry.type
 class TaskReportType:
     success: bool = strawberry.field(description="是否成功")
     message: str = strawberry.field(description="消息")
@@ -196,6 +211,9 @@ class TaskReportType:
     )
     fingerprint: Optional[str] = strawberry.field(
         default=None, description="可复现指纹（JSON）"
+    )
+    sample_results: List[SampleResultType] = strawberry.field(
+        default_factory=list, description="样本级评测结果"
     )
 
 

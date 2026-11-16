@@ -1,0 +1,2 @@
+# Install in the existing id_x_009 backend environment.
+openai>=1.0.0,<3.0.0

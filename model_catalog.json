@@ -1,0 +1,30 @@
+{
+  "catalog_version": "0.1",
+  "source": "user_supplied_candidate_list",
+  "verification_status": "candidate_unverified_until_checked_against_GET_v1_models",
+  "models": [
+    {"id":"deepseek-v4-flash-0731","vendor":"DeepSeek","series":"DeepSeek V4 Flash","modality":"text","finance_text_eval_candidate":true},
+    {"id":"deepseek-v4-pro-0813","vendor":"DeepSeek","series":"DeepSeek V4 Pro","modality":"text","finance_text_eval_candidate":true},
+    {"id":"deepseek-v4.1-flash","vendor":"DeepSeek","series":"DeepSeek V4.1 Flash","modality":"text","finance_text_eval_candidate":true},
+    {"id":"deepseek-v4.1-flash-1017","vendor":"DeepSeek","series":"DeepSeek V4.1 Flash","modality":"text","finance_text_eval_candidate":true},
+    {"id":"gemini-2.5-flash-image","vendor":"Google","series":"Gemini 2.5 Flash Image","modality":"image_generation_or_multimodal","finance_text_eval_candidate":false},
+    {"id":"gemini-3-pro-image","vendor":"Google","series":"Gemini 3 Pro Image","modality":"image_generation_or_multimodal","finance_text_eval_candidate":false},
+    {"id":"gemini-3-pro-image-preview","vendor":"Google","series":"Gemini 3 Pro Image Preview","modality":"image_generation_or_multimodal","finance_text_eval_candidate":false},
+    {"id":"gemini-3.1-flash-image","vendor":"Google","series":"Gemini 3.1 Flash Image","modality":"image_generation_or_multimodal","finance_text_eval_candidate":false},
+    {"id":"gemini-3.1-flash-image-preview","vendor":"Google","series":"Gemini 3.1 Flash Image Preview","modality":"image_generation_or_multimodal","finance_text_eval_candidate":false},
+    {"id":"gemini-3.1-flash-lite-image","vendor":"Google","series":"Gemini 3.1 Flash Lite Image","modality":"image_generation_or_multimodal","finance_text_eval_candidate":false},
+    {"id":"gemini-nano-banana-2.1","vendor":"Google","series":"Nano Banana 2.1","modality":"image_generation","finance_text_eval_candidate":false},
+    {"id":"glm-5.3","vendor":"Zhipu","series":"GLM 5.3","modality":"text","finance_text_eval_candidate":true},
+    {"id":"kimi-k2.5","vendor":"Moonshot","series":"Kimi K2.5","modality":"text","finance_text_eval_candidate":true},
+    {"id":"kimi-k2.6","vendor":"Moonshot","series":"Kimi K2.6","modality":"text","finance_text_eval_candidate":true},
+    {"id":"kimi-k2.7-code","vendor":"Moonshot","series":"Kimi K2.7 Code","modality":"text_code","finance_text_eval_candidate":true},
+    {"id":"kimi-k3","vendor":"Moonshot","series":"Kimi K3","modality":"text","finance_text_eval_candidate":true},
+    {"id":"gpt-5.4","vendor":"OpenAI","series":"GPT 5.4","modality":"text","finance_text_eval_candidate":true},
+    {"id":"gpt-5.5","vendor":"OpenAI","series":"GPT 5.5","modality":"text","finance_text_eval_candidate":true},
+    {"id":"gpt-5.6-sol","vendor":"OpenAI","series":"GPT 5.6 Sol","modality":"text","finance_text_eval_candidate":true},
+    {"id":"gpt-5.6-terra","vendor":"OpenAI","series":"GPT 5.6 Terra","modality":"text","finance_text_eval_candidate":true},
+    {"id":"gpt-6-astra","vendor":"OpenAI","series":"GPT 6 Astra","modality":"text","finance_text_eval_candidate":true},
+    {"id":"gpt-6-sol","vendor":"OpenAI","series":"GPT 6 Sol","modality":"text","finance_text_eval_candidate":true},
+    {"id":"gpt-6.1-sol","vendor":"OpenAI","series":"GPT 6.1 Sol","modality":"text","finance_text_eval_candidate":true}
+  ]
+}

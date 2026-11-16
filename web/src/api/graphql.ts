@@ -214,8 +214,8 @@ export interface ScorePoint {
   backend: string;
   compositeScore: number;
   costPerTask: number;
-  latencyP50: number;
-  throughput: number;
+  latencyP50: number | null;
+  throughput: number | null;
   domainScores: DomainScore[];
   taskUid: string;
   onFrontier: boolean;
@@ -246,6 +246,21 @@ export interface TaskReport {
   throughput: number;
   domainScores: DomainScore[];
   fingerprint: string | null;
+  sampleResults: SampleResult[];
+}
+
+export interface SampleResult {
+  sampleId: string;
+  businessModule: string | null;
+  answer: string;
+  score: number;
+  scoreStatus: string;
+  responseId: string | null;
+  returnedModel: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  latencyMs: number | null;
 }
 
 export interface ListModelsPayload {
@@ -511,6 +526,19 @@ export const evalGraphqlApi = {
             domain
             score
             weight
+          }
+          sampleResults {
+            sampleId
+            businessModule
+            answer
+            score
+            scoreStatus
+            responseId
+            returnedModel
+            promptTokens
+            completionTokens
+            totalTokens
+            latencyMs
           }
           fingerprint
         }

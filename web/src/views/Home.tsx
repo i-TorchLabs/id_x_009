@@ -949,8 +949,8 @@ export default function Home() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
             {[
               { label: "成本/任务", value: formatCost(selectedPoint.costPerTask) },
-              { label: "P50 时延", value: `${selectedPoint.latencyP50.toFixed(0)}ms` },
-              { label: "吞吐", value: `${selectedPoint.throughput.toFixed(1)}/s` },
+              { label: "P50 时延", value: selectedPoint.latencyP50 == null ? "—" : `${selectedPoint.latencyP50.toFixed(0)}ms` },
+              { label: "吞吐", value: selectedPoint.throughput == null ? "—" : `${selectedPoint.throughput.toFixed(1)}/s` },
             ].map((s) => (
               <div
                 key={s.label}
@@ -1397,9 +1397,9 @@ export default function Home() {
             <span style={{ color: fg3 }}>成本</span>
             <span>{formatCost(hoverPoint.point.costPerTask)}</span>
             <span style={{ color: fg3 }}>P50</span>
-            <span>{hoverPoint.point.latencyP50.toFixed(0)}ms</span>
+            <span>{hoverPoint.point.latencyP50 == null ? "—" : `${hoverPoint.point.latencyP50.toFixed(0)}ms`}</span>
             <span style={{ color: fg3 }}>吞吐</span>
-            <span>{hoverPoint.point.throughput.toFixed(1)}/s</span>
+            <span>{hoverPoint.point.throughput == null ? "—" : `${hoverPoint.point.throughput.toFixed(1)}/s`}</span>
             <span style={{ color: fg3 }}>性价比</span>
             <span>#{hoverPoint.point.valueRank}</span>
           </div>
@@ -2225,8 +2225,8 @@ export default function Home() {
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
                       {[
                         { label: "成本/任务", value: formatCost(report.costPerTask) },
-                        { label: "P50 时延", value: `${report.latencyP50.toFixed(0)}ms` },
-                        { label: "吞吐", value: `${report.throughput.toFixed(1)}/s` },
+                        { label: "P50 时延", value: report.latencyP50 == null ? "—" : `${report.latencyP50.toFixed(0)}ms` },
+                        { label: "吞吐", value: report.throughput == null ? "—" : `${report.throughput.toFixed(1)}/s` },
                       ].map((s) => (
                         <div
                           key={s.label}
@@ -2251,6 +2251,36 @@ export default function Home() {
                         <DomainScoreBar key={ds.domain} ds={ds} fg={fg} fg2={fg2} fg3={fg3} divider={divider} />
                       ))}
                     </div>
+
+                    {report.sampleResults?.length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <FieldLabel color={fg3}>金融样本明细</FieldLabel>
+                        <div style={{ overflowX: "auto", border: `1px solid ${divider}`, borderRadius: "10px" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: SF_TEXT, fontSize: "11px" }}>
+                            <thead>
+                              <tr style={{ color: fg3, textAlign: "left", background: inputBg }}>
+                                <th style={{ padding: "8px" }}>样本</th>
+                                <th style={{ padding: "8px" }}>业务模块</th>
+                                <th style={{ padding: "8px" }}>得分</th>
+                                <th style={{ padding: "8px" }}>状态</th>
+                                <th style={{ padding: "8px" }}>回答</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {report.sampleResults.map((sample) => (
+                                <tr key={sample.sampleId} style={{ borderTop: `1px solid ${divider}`, color: fg2 }}>
+                                  <td style={{ padding: "8px", whiteSpace: "nowrap", fontFamily: SF_MONO }}>{sample.sampleId}</td>
+                                  <td style={{ padding: "8px", whiteSpace: "nowrap" }}>{sample.businessModule || "—"}</td>
+                                  <td style={{ padding: "8px", whiteSpace: "nowrap", color: sample.scoreStatus === "pass" ? fg : error }}>{sample.score.toFixed(1)}</td>
+                                  <td style={{ padding: "8px", whiteSpace: "nowrap" }}>{sample.scoreStatus}</td>
+                                  <td style={{ padding: "8px", minWidth: "220px", maxWidth: "420px" }}>{sample.answer}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
 
                     {report.fingerprint && (
                       <div>

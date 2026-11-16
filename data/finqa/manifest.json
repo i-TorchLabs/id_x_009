@@ -1,0 +1,13 @@
+{
+  "name": "FinQA",
+  "split": "test",
+  "version": "official-test-100",
+  "source_repository": "https://github.com/czyssrs/FinQA",
+  "source_revision": "0f16e2867befa6840783e58be38c9efb9229d742",
+  "license": "MIT",
+  "schema_version": "finance-standard-finqa/1.0",
+  "sample_file": "finqa_test_100.json",
+  "sample_count": 100,
+  "sha256": "058cc4dbd711605bff6532fd3ecb2e3a1dbcc6bfbd7ff01e4cd243df930c78b5",
+  "answer_key_excluded_from_model_input": true
+}
