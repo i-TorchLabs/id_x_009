@@ -14,6 +14,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from x_models.id_x_009.src.services.pricing import load_model_prices
 
+UNPRICED_FILE = REPO_ROOT / "x_models/id_x_009/data/pricing/unpriced_models_2026-11.json"
+
 
 async def main() -> int:
     api = os.getenv("ID009_GRAPHQL_API", "http://127.0.0.1:7001/b/id_x_009/graphql")
@@ -30,16 +32,19 @@ async def main() -> int:
         payload = json.loads(response.read().decode())
     models = payload.get("data", {}).get("models", [])
     prices = load_model_prices()
+    unavailable_payload = json.loads(UNPRICED_FILE.read_text(encoding="utf-8"))
+    unavailable = {item["model_key"] for item in unavailable_payload.get("models", [])}
     exempt = sorted({item["name"] for item in models if item["name"] == "local-smoke-model"})
     missing = sorted(
         {
             item["name"]
             for item in models
-            if item["name"] not in prices and item["name"] not in exempt
+            if item["name"] not in prices and item["name"] not in exempt and item["name"] not in unavailable
         }
     )
-    priced_count = len(models) - len(missing) - len(exempt)
-    print(json.dumps({"model_count": len(models), "priced_count": priced_count, "missing": missing, "exempt": exempt}, ensure_ascii=False))
+    unavailable_found = sorted({item["name"] for item in models if item["name"] in unavailable})
+    priced_count = len(models) - len(missing) - len(exempt) - len(unavailable_found)
+    print(json.dumps({"model_count": len(models), "priced_count": priced_count, "missing": missing, "unavailable": unavailable_found, "exempt": exempt}, ensure_ascii=False))
     return 0 if not missing else 2
 
 

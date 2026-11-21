@@ -1,0 +1,21 @@
+{
+  "effective_at": "2026-11-21",
+  "status": "暂不可用或待补价格",
+  "models": [
+    {
+      "model_key": "gpt-5.4",
+      "availability": "UPSTREAM_NO_CHANNEL",
+      "reason": "ChinaRouter 返回无可用渠道"
+    },
+    {
+      "model_key": "kimi-k3",
+      "availability": "UPSTREAM_NO_CHANNEL",
+      "reason": "ChinaRouter 返回无可用渠道"
+    },
+    {
+      "model_key": "kimi-k3.1-pro",
+      "availability": "UPSTREAM_NO_CHANNEL_OR_PARAMETER_LIMIT",
+      "reason": "当前渠道不稳定，部分请求要求 temperature=1"
+    }
+  ]
+}
