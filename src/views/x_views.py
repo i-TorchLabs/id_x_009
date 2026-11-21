@@ -1138,6 +1138,8 @@ async def view_score_cost_graph(
                 m = r.model
                 if m is None:
                     continue
+                if r.cost_per_task is None or r.cost_per_task <= 0:
+                    continue
                 if filter is not None:
                     if filter.vendors and m.vendor not in filter.vendors:
                         continue

@@ -402,7 +402,7 @@ export default function Home() {
       return { W, H, ML, MR, MT, MB, plotW, plotH, xMin: 0, xMax: 1, yMin: 0, yMax: 100, logMin: 0, logMax: 1, xTicks: [] as number[], yTicks: [] as number[], toX: (_c: number) => 0, toY: (_s: number) => 0, seriesLines: [] as { pts: { x: number; y: number }[]; vendor: string }[], frontierPts: [] as { x: number; y: number }[] };
     }
 
-    const costs = points.map((p) => Math.max(p.costPerTask, 1e-6));
+    const costs = points.map((p) => p.costPerTask).filter((cost) => cost > 0);
     const scores = points.map((p) => p.compositeScore);
     let cMin = Math.min(...costs);
     let cMax = Math.max(...costs);
