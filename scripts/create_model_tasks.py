@@ -32,7 +32,7 @@ def main() -> int:
     token = os.getenv(args.token_env, "").strip()
     if not token:
         raise SystemExit(f"Missing GraphQL token environment variable: {args.token_env}")
-    models = call(args.api, token, "{ models { id name vendor backend } }").get("data", {}).get("models", [])
+    models = call(args.api, token, "{ models { id name vendor backend inputPricePer1m outputPricePer1m } }").get("data", {}).get("models", [])
     selected_ids = None
     if args.only_model_ids:
         selected_ids = {int(value.strip()) for value in args.only_model_ids.split(",") if value.strip()}
@@ -41,6 +41,9 @@ def main() -> int:
             continue
         if model.get("name") in UNAVAILABLE_MODELS:
             print(json.dumps({"model": model["name"], "skipped": True, "reason": "暂不可用或缺少价格"}, ensure_ascii=False))
+            continue
+        if model.get("inputPricePer1m") is None or model.get("outputPricePer1m") is None:
+            print(json.dumps({"model": model["name"], "skipped": True, "reason": "缺少输入或输出价格"}, ensure_ascii=False))
             continue
         if selected_ids is not None and model.get("id") not in selected_ids:
             continue
