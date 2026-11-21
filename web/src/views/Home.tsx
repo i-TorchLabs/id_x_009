@@ -950,9 +950,11 @@ export default function Home() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px" }}>
             {[
               { label: "成本/任务", value: formatCost(selectedPoint.costPerTask) },
+              { label: "输入价/1M", value: formatPrice(selectedPoint.inputPricePer1m) },
+              { label: "输出价/1M", value: formatPrice(selectedPoint.outputPricePer1m) },
               { label: "P50 时延", value: selectedPoint.latencyP50 == null ? "—" : `${selectedPoint.latencyP50.toFixed(0)}ms` },
               { label: "吞吐", value: selectedPoint.throughput == null ? "—" : `${selectedPoint.throughput.toFixed(1)}/s` },
             ].map((s) => (
@@ -1400,6 +1402,10 @@ export default function Home() {
             <span>{hoverPoint.point.compositeScore.toFixed(1)}</span>
             <span style={{ color: fg3 }}>成本</span>
             <span>{formatCost(hoverPoint.point.costPerTask)}</span>
+            <span style={{ color: fg3 }}>输入价/1M</span>
+            <span>{formatPrice(hoverPoint.point.inputPricePer1m)}</span>
+            <span style={{ color: fg3 }}>输出价/1M</span>
+            <span>{formatPrice(hoverPoint.point.outputPricePer1m)}</span>
             <span style={{ color: fg3 }}>P50</span>
             <span>{hoverPoint.point.latencyP50 == null ? "—" : `${hoverPoint.point.latencyP50.toFixed(0)}ms`}</span>
             <span style={{ color: fg3 }}>吞吐</span>
@@ -2460,6 +2466,22 @@ export default function Home() {
                           {compareList.map((p) => (
                             <td key={p.modelId} style={{ textAlign: "right", color: fg, fontFamily: SF_MONO, fontSize: "12px", padding: "8px 0 0 12px" }}>
                               {formatCost(p.costPerTask)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr data-row>
+                          <td style={{ color: fg2, padding: "8px 12px 0 0", letterSpacing: "-0.1px" }}>输入价/1M</td>
+                          {compareList.map((p) => (
+                            <td key={p.modelId} style={{ textAlign: "right", color: fg, fontFamily: SF_MONO, fontSize: "12px", padding: "8px 0 0 12px" }}>
+                              {formatPrice(p.inputPricePer1m)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr data-row>
+                          <td style={{ color: fg2, padding: "8px 12px 0 0", letterSpacing: "-0.1px" }}>输出价/1M</td>
+                          {compareList.map((p) => (
+                            <td key={p.modelId} style={{ textAlign: "right", color: fg, fontFamily: SF_MONO, fontSize: "12px", padding: "8px 0 0 12px" }}>
+                              {formatPrice(p.outputPricePer1m)}
                             </td>
                           ))}
                         </tr>
