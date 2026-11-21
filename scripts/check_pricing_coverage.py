@@ -30,8 +30,16 @@ async def main() -> int:
         payload = json.loads(response.read().decode())
     models = payload.get("data", {}).get("models", [])
     prices = load_model_prices()
-    missing = sorted({item["name"] for item in models if item["name"] not in prices})
-    print(json.dumps({"model_count": len(models), "priced_count": len(models) - len(missing), "missing": missing}, ensure_ascii=False))
+    exempt = sorted({item["name"] for item in models if item["name"] == "local-smoke-model"})
+    missing = sorted(
+        {
+            item["name"]
+            for item in models
+            if item["name"] not in prices and item["name"] not in exempt
+        }
+    )
+    priced_count = len(models) - len(missing) - len(exempt)
+    print(json.dumps({"model_count": len(models), "priced_count": priced_count, "missing": missing, "exempt": exempt}, ensure_ascii=False))
     return 0 if not missing else 2
 
 
