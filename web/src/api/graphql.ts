@@ -174,6 +174,7 @@ export interface EvalTaskItem {
   progress: number;
   fingerprint: string | null;
   error: string | null;
+  errorType: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -476,6 +477,7 @@ export const evalGraphqlApi = {
           progress
           fingerprint
           error
+          errorType
           createdAt
           updatedAt
         }

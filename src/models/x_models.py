@@ -223,6 +223,9 @@ class EvalTask(Base):
     error: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True, comment="失败原因"
     )
+    error_type: Mapped[Optional[str]] = mapped_column(
+        String(32), nullable=True, comment="结构化失败类型"
+    )
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), default=_utcnow, comment="创建时间"
     )

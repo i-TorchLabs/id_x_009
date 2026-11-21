@@ -77,6 +77,21 @@ _TICK_SECONDS = 1.0
 _REAL_EVAL_DOMAINS = {key for key, _label, _weight in DOMAIN_SPECS}
 
 
+def _classify_eval_error(exc: Exception) -> str:
+    message = str(exc).lower()
+    if "timeout" in message or "timed out" in message:
+        return "UPSTREAM_TIMEOUT"
+    if "429" in message or "rate limit" in message:
+        return "RATE_LIMITED"
+    if "model" in message and ("not found" in message or "unavailable" in message):
+        return "MODEL_NOT_FOUND"
+    if "token" in message and "usage" in message:
+        return "MISSING_USAGE"
+    if "score" in message or "answer" in message:
+        return "SCORING_ERROR"
+    return "UNKNOWN"
+
+
 def _median(values: list[float]) -> float:
     ordered = sorted(values)
     middle = len(ordered) // 2
@@ -236,6 +251,7 @@ def _task_to_type(t: EvalTask) -> EvalTaskType:
         progress=t.progress or 0,
         fingerprint=t.fingerprint,
         error=t.error,
+        error_type=t.error_type,
         created_at=_iso(t.created_at),
         updated_at=_iso(t.updated_at),
     )
@@ -604,6 +620,7 @@ async def _run_task(maker: async_sessionmaker, task_id: int) -> None:
                 if task is not None:
                     task.status = "Failed"
                     task.error = str(exc)
+                    task.error_type = _classify_eval_error(exc)
                     await session.commit()
         return
 
@@ -664,6 +681,7 @@ async def _run_task(maker: async_sessionmaker, task_id: int) -> None:
                     if task is not None:
                         task.status = "Failed"
                         task.error = str(e)
+                        task.error_type = _classify_eval_error(e)
                         await session.commit()
             except Exception:
                 pass
@@ -1001,6 +1019,7 @@ async def view_resume_task(task_uid: str) -> TaskActionResultType:
                 task.status = "Pending"
                 task.progress = 0
                 task.error = None
+                task.error_type = None
                 await session.commit()
                 _start_runner(task.id)
                 return TaskActionResultType(

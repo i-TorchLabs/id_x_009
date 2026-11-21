@@ -34,6 +34,7 @@ class _Idx009Plugin:
         await conn.run_sync(self.base.metadata.create_all)
         await conn.execute(text("ALTER TABLE models ADD COLUMN IF NOT EXISTS input_price_per_1m DOUBLE PRECISION"))
         await conn.execute(text("ALTER TABLE models ADD COLUMN IF NOT EXISTS output_price_per_1m DOUBLE PRECISION"))
+        await conn.execute(text("ALTER TABLE eval_tasks ADD COLUMN IF NOT EXISTS error_type VARCHAR(32)"))
         from x_models.id_x_009.src.services.pricing import load_model_prices
 
         for model_key, price in load_model_prices().items():

@@ -140,6 +140,7 @@ class EvalTaskType:
         default=None, description="可复现指纹（JSON）"
     )
     error: Optional[str] = strawberry.field(default=None, description="失败原因")
+    error_type: Optional[str] = strawberry.field(default=None, description="失败类型")
     created_at: Optional[str] = strawberry.field(default=None, description="创建时间")
     updated_at: Optional[str] = strawberry.field(default=None, description="更新时间")
 
