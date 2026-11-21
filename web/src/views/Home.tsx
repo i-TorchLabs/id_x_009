@@ -70,6 +70,10 @@ function formatCost(cost: number): string {
   return `$${cost.toFixed(0)}`;
 }
 
+function formatPrice(price: number | null): string {
+  return price == null ? "待补价" : `$${price.toFixed(4)}`;
+}
+
 function formatCount(n: number): string {
   return n.toLocaleString("en-US");
 }
@@ -1617,7 +1621,7 @@ export default function Home() {
           <table style={{ borderCollapse: "collapse", width: "100%", fontFamily: SF_TEXT, fontSize: "13px" }}>
             <thead>
               <tr>
-                {["名称", "厂商", "系列", "版本", "接入方式", "后端", "参数量", "上下文"].map((h) => (
+                {["名称", "厂商", "系列", "版本", "接入方式", "后端", "参数量", "上下文", "输入价/1M", "输出价/1M"].map((h) => (
                   <th
                     key={h}
                     style={{
@@ -1664,6 +1668,12 @@ export default function Home() {
                   </td>
                   <td style={{ padding: "10px 0", borderBottom: `1px solid ${divider}`, color: fg2, fontFamily: SF_MONO, fontSize: "12px", whiteSpace: "nowrap" }}>
                     {m.contextLength != null ? formatCount(m.contextLength) : "—"}
+                  </td>
+                  <td style={{ padding: "10px 12px 10px 0", borderBottom: `1px solid ${divider}`, color: m.inputPricePer1m == null ? error : fg2, fontFamily: SF_MONO, fontSize: "12px", whiteSpace: "nowrap" }}>
+                    {formatPrice(m.inputPricePer1m)}
+                  </td>
+                  <td style={{ padding: "10px 0", borderBottom: `1px solid ${divider}`, color: m.outputPricePer1m == null ? error : fg2, fontFamily: SF_MONO, fontSize: "12px", whiteSpace: "nowrap" }}>
+                    {formatPrice(m.outputPricePer1m)}
                   </td>
                 </tr>
               ))}

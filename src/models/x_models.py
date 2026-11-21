@@ -157,6 +157,8 @@ class Model(Base):
     context_length: Mapped[Optional[int]] = mapped_column(
         Integer, nullable=True, comment="上下文长度（tokens）"
     )
+    input_price_per_1m: Mapped[Optional[float]] = mapped_column(Float, nullable=True, comment="输入价格（USD/1M tokens）")
+    output_price_per_1m: Mapped[Optional[float]] = mapped_column(Float, nullable=True, comment="输出价格（USD/1M tokens）")
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), default=_utcnow, comment="创建时间"
     )

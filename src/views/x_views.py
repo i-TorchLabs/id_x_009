@@ -60,6 +60,7 @@ from x_models.id_x_009.src.services.financebench import (
     evaluate_financebench_samples,
     load_financebench_samples,
 )
+from x_models.id_x_009.src.services.pricing import calculate_cost, load_model_prices
 
 
 
@@ -194,6 +195,8 @@ def _model_to_type(m: Model) -> ModelType:
         backend=m.backend,
         params_b=m.params_b,
         context_length=m.context_length,
+        input_price_per_1m=m.input_price_per_1m,
+        output_price_per_1m=m.output_price_per_1m,
         created_at=_iso(m.created_at),
     )
 
@@ -450,6 +453,10 @@ async def view_register_model(input: RegisterModelInput) -> RegisterModelResultT
                 params_b=input.params_b,
                 context_length=input.context_length,
             )
+            price = load_model_prices().get(model.name)
+            if price is not None:
+                model.input_price_per_1m = float(price.input_price_per_1m)
+                model.output_price_per_1m = float(price.output_price_per_1m)
             session.add(model)
             await session.commit()
             await session.refresh(model)
@@ -736,7 +743,7 @@ def _real_eval_cost(evaluations) -> float:
     )
 
 
-def _real_eval_cost_from_records(records) -> float:
+def _real_eval_cost_from_records(records, model_key: str) -> float:
     try:
         input_rate = float(os.getenv("ID009_LLM_INPUT_COST_PER_1K_TOKENS", ""))
         output_rate = float(os.getenv("ID009_LLM_OUTPUT_COST_PER_1K_TOKENS", ""))
@@ -748,6 +755,8 @@ def _real_eval_cost_from_records(records) -> float:
     completion_tokens = sum(item["completion_tokens"] or 0 for item in records)
     if not records or (prompt_tokens == 0 and completion_tokens == 0):
         raise RuntimeError("FinanceBench 评测缺少 token usage，无法计算成本")
+    if input_rate == 0 and output_rate == 0:
+        return calculate_cost(model_key, prompt_tokens, completion_tokens)
     return round(
         prompt_tokens / 1000.0 * input_rate
         + completion_tokens / 1000.0 * output_rate,
@@ -804,7 +813,7 @@ async def _run_real_task(maker: async_sessionmaker, task_id: int) -> None:
             if not sample_results:
                 raise RuntimeError("FinanceBench 样本列表不能为空")
             scores = [item["score"]["score"] for item in sample_results]
-            cost_per_task = _real_eval_cost_from_records(sample_results)
+            cost_per_task = _real_eval_cost_from_records(sample_results, task.model.name)
             task.progress = 100
             task.status = "Done"
             session.add(
@@ -1132,6 +1141,8 @@ async def view_score_cost_graph(
                         backend=m.backend,
                         composite_score=r.composite_score,
                         cost_per_task=r.cost_per_task,
+                        input_price_per_1m=m.input_price_per_1m,
+                        output_price_per_1m=m.output_price_per_1m,
                         latency_p50=r.latency_p50,
                         throughput=r.throughput,
                         domain_scores=_result_domain_scores(r),

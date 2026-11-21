@@ -75,6 +75,8 @@ class ModelType:
     context_length: Optional[int] = strawberry.field(
         default=None, description="上下文长度（tokens）"
     )
+    input_price_per_1m: Optional[float] = strawberry.field(default=None, description="输入价格（USD/1M tokens）")
+    output_price_per_1m: Optional[float] = strawberry.field(default=None, description="输出价格（USD/1M tokens）")
     created_at: Optional[str] = strawberry.field(default=None, description="注册时间")
 
 
@@ -230,6 +232,8 @@ class ScorePointType:
     backend: str = strawberry.field(description="推理后端")
     composite_score: float = strawberry.field(description="综合评分")
     cost_per_task: float = strawberry.field(description="每任务推理成本（USD）")
+    input_price_per_1m: Optional[float] = strawberry.field(default=None, description="输入价格（USD/1M tokens）")
+    output_price_per_1m: Optional[float] = strawberry.field(default=None, description="输出价格（USD/1M tokens）")
     latency_p50: Optional[float] = strawberry.field(default=None, description="P50 时延（ms）")
     throughput: Optional[float] = strawberry.field(default=None, description="吞吐（tokens/s）")
     domain_scores: List[DomainScoreType] = strawberry.field(

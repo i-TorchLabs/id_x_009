@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, async_sessionmaker
 
 from x_models._contracts import PluginInterface
@@ -31,6 +32,23 @@ class _Idx009Plugin:
 
     async def build_tables(self, conn: AsyncConnection) -> None:
         await conn.run_sync(self.base.metadata.create_all)
+        await conn.execute(text("ALTER TABLE models ADD COLUMN IF NOT EXISTS input_price_per_1m DOUBLE PRECISION"))
+        await conn.execute(text("ALTER TABLE models ADD COLUMN IF NOT EXISTS output_price_per_1m DOUBLE PRECISION"))
+        from x_models.id_x_009.src.services.pricing import load_model_prices
+
+        for model_key, price in load_model_prices().items():
+            await conn.execute(
+                text(
+                    "UPDATE models SET input_price_per_1m = :input_price, "
+                    "output_price_per_1m = :output_price "
+                    "WHERE name = :model_key"
+                ),
+                {
+                    "input_price": float(price.input_price_per_1m),
+                    "output_price": float(price.output_price_per_1m),
+                    "model_key": model_key,
+                },
+            )
 
 
 def load_plugin() -> PluginInterface:

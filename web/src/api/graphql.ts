@@ -146,6 +146,8 @@ export interface ModelItem {
   backend: string;
   paramsB: number | null;
   contextLength: number | null;
+  inputPricePer1m: number | null;
+  outputPricePer1m: number | null;
   createdAt: string | null;
 }
 
@@ -214,6 +216,8 @@ export interface ScorePoint {
   backend: string;
   compositeScore: number;
   costPerTask: number;
+  inputPricePer1m: number | null;
+  outputPricePer1m: number | null;
   latencyP50: number | null;
   throughput: number | null;
   domainScores: DomainScore[];
@@ -242,6 +246,8 @@ export interface TaskReport {
   status: string;
   compositeScore: number;
   costPerTask: number;
+  inputPricePer1m: number | null;
+  outputPricePer1m: number | null;
   latencyP50: number;
   throughput: number;
   domainScores: DomainScore[];
@@ -421,6 +427,8 @@ export const evalGraphqlApi = {
           backend
           paramsB
           contextLength
+          inputPricePer1m
+          outputPricePer1m
           createdAt
         }
       }
@@ -567,6 +575,8 @@ export const evalGraphqlApi = {
             backend
             compositeScore
             costPerTask
+            inputPricePer1m
+            outputPricePer1m
             latencyP50
             throughput
             domainScores {
