@@ -70,6 +70,22 @@ class FinanceBenchTests(unittest.TestCase):
         result = score_financebench_numeric("14.5%", sample)
         self.assertEqual(result["status"], "pass")
 
+    def test_numeric_scoring_accepts_explicit_unit_equivalence(self):
+        scaled_record = {
+            **RECORD,
+            "gold_reference": {
+                **RECORD["gold_reference"],
+                "independently_recalculated_answer": "112",
+                "absolute_tolerance": 0.112,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "samples.json"
+            path.write_text(json.dumps([scaled_record]), encoding="utf-8")
+            sample = load_financebench_samples(path)[0]
+        result = score_financebench_numeric("The result is 0.112 million.", sample)
+        self.assertEqual(result["status"], "pass")
+
     def test_evaluate_sends_prompt_and_evidence_but_not_gold(self):
         class FakeClient:
             def __init__(self):

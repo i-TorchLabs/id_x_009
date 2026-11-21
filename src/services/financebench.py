@@ -27,6 +27,20 @@ _MARKED_NUMBER_RE = re.compile(
 _BOLD_NUMBER_RE = re.compile(
     r"\*\*\s*([-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:%|x)?)\s*\*\*"
 )
+_SCALED_NUMBER_RE = re.compile(
+    r"([-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*"
+    r"(thousand|million|billion|trillion|千|百万|十亿)",
+    re.IGNORECASE,
+)
+_SCALE_FACTORS = {
+    "thousand": 1_000.0,
+    "million": 1_000_000.0,
+    "billion": 1_000_000_000.0,
+    "trillion": 1_000_000_000_000.0,
+    "千": 1_000.0,
+    "百万": 1_000_000.0,
+    "十亿": 1_000_000_000.0,
+}
 
 
 @dataclass(frozen=True)
@@ -172,9 +186,16 @@ def score_financebench_numeric(answer: str, sample: FinanceBenchSample) -> dict[
         return {"score": 0.0, "status": "unparseable", "candidates": candidates}
     else:
         value = candidates[0]
-    error = abs(value - sample.expected_value)
     rounding_tolerance = _rounding_tolerance(sample.expected_answer)
     effective_tolerance = max(sample.absolute_tolerance, rounding_tolerance)
+    error = abs(value - sample.expected_value)
+    if error > effective_tolerance:
+        for scaled_value in _scaled_equivalents(answer, value):
+            scaled_error = abs(scaled_value - sample.expected_value)
+            if scaled_error <= effective_tolerance:
+                value = scaled_value
+                error = scaled_error
+                break
     passed = error <= effective_tolerance
     return {
         "score": 100.0 if passed else 0.0,
@@ -195,6 +216,18 @@ def _rounding_tolerance(expected_answer: str) -> float:
         return 0.5
     decimals = len(numeric.split(".", 1)[1])
     return 0.5 * (10 ** -decimals)
+
+
+def _scaled_equivalents(answer: str, value: float) -> list[float]:
+    """Return conservative unit-converted variants for explicit scale words."""
+    matches = _SCALED_NUMBER_RE.findall(answer)
+    equivalents: list[float] = []
+    for number, scale in matches:
+        factor = _SCALE_FACTORS[scale.lower()]
+        scaled = float(number.replace(",", ""))
+        if abs(scaled - value) < 1e-9:
+            equivalents.extend((scaled * factor, scaled / factor, scaled * 1_000, scaled / 1_000))
+    return equivalents
 
 
 async def evaluate_financebench_samples(
