@@ -5,6 +5,12 @@ import asyncio
 import os
 import urllib.request
 import json
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from x_models.id_x_009.src.services.pricing import load_model_prices
 
