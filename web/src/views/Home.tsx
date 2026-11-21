@@ -1544,6 +1544,11 @@ export default function Home() {
                   </td>
                   <td style={{ padding: "10px 12px 10px 0", borderBottom: `1px solid ${divider}`, whiteSpace: "nowrap" }}>
                     {statusBadge(tk.status)}
+                    {tk.status === "Failed" && (tk.errorType || tk.error) && (
+                      <div title={tk.error || ""} style={{ color: error, fontSize: "10px", marginTop: "4px", maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {tk.errorType || "UNKNOWN"}
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: "10px 12px 10px 0", borderBottom: `1px solid ${divider}`, minWidth: "90px" }}>
                     {tk.status === "Running" || tk.status === "Paused" ? (
