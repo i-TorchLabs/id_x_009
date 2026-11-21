@@ -7,6 +7,8 @@ import os
 import urllib.request
 from typing import Any
 
+UNAVAILABLE_MODELS = {"gpt-5.4", "kimi-k3", "kimi-k3.1-pro"}
+
 
 def call(api: str, token: str, query: str) -> dict[str, Any]:
     request = urllib.request.Request(
@@ -36,6 +38,9 @@ def main() -> int:
         selected_ids = {int(value.strip()) for value in args.only_model_ids.split(",") if value.strip()}
     for model in models:
         if model.get("name") == "local-smoke-model":
+            continue
+        if model.get("name") in UNAVAILABLE_MODELS:
+            print(json.dumps({"model": model["name"], "skipped": True, "reason": "暂不可用或缺少价格"}, ensure_ascii=False))
             continue
         if selected_ids is not None and model.get("id") not in selected_ids:
             continue

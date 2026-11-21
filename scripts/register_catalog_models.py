@@ -12,6 +12,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+UNAVAILABLE_MODELS = {"gpt-5.4", "kimi-k3", "kimi-k3.1-pro"}
+
 
 def graphql(api: str, token: str, query: str) -> dict[str, Any]:
     body = json.dumps({"query": query}).encode("utf-8")
@@ -44,6 +46,9 @@ def register(api: str, token: str, catalog_path: Path, available: list[str]) -> 
     results: list[dict[str, Any]] = []
     for model_id in available:
         item = metadata.get(model_id, {})
+        if model_id in UNAVAILABLE_MODELS:
+            print(json.dumps({"name": model_id, "skipped": True, "reason": "暂不可用或缺少价格"}, ensure_ascii=False))
+            continue
         if item.get("modality", "text") in {"image_generation", "image_generation_or_multimodal"} or "image" in model_id:
             continue
         vendor = str(item.get("vendor", "Unknown"))
