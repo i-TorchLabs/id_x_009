@@ -54,6 +54,22 @@ class FinanceBenchTests(unittest.TestCase):
         )
         self.assertEqual(threshold_result["answer_value"], 0.95)
 
+    def test_numeric_scoring_accepts_published_rounding(self):
+        rounded_record = {
+            **RECORD,
+            "gold_reference": {
+                **RECORD["gold_reference"],
+                "independently_recalculated_answer": "14%",
+                "absolute_tolerance": 0.014,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "samples.json"
+            path.write_text(json.dumps([rounded_record]), encoding="utf-8")
+            sample = load_financebench_samples(path)[0]
+        result = score_financebench_numeric("14.5%", sample)
+        self.assertEqual(result["status"], "pass")
+
     def test_evaluate_sends_prompt_and_evidence_but_not_gold(self):
         class FakeClient:
             def __init__(self):

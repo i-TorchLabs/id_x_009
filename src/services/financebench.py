@@ -173,16 +173,28 @@ def score_financebench_numeric(answer: str, sample: FinanceBenchSample) -> dict[
     else:
         value = candidates[0]
     error = abs(value - sample.expected_value)
-    passed = error <= sample.absolute_tolerance
+    rounding_tolerance = _rounding_tolerance(sample.expected_answer)
+    effective_tolerance = max(sample.absolute_tolerance, rounding_tolerance)
+    passed = error <= effective_tolerance
     return {
         "score": 100.0 if passed else 0.0,
         "status": "pass" if passed else "fail",
         "answer_value": value,
         "expected_value": sample.expected_value,
         "absolute_error": error,
-        "absolute_tolerance": sample.absolute_tolerance,
+        "absolute_tolerance": effective_tolerance,
         "candidates": candidates,
     }
+
+
+def _rounding_tolerance(expected_answer: str) -> float:
+    """Allow the precision used by the published answer representation."""
+    normalized = expected_answer.strip().replace(",", "")
+    numeric = normalized.rstrip("%xX")
+    if "." not in numeric:
+        return 0.5
+    decimals = len(numeric.split(".", 1)[1])
+    return 0.5 * (10 ** -decimals)
 
 
 async def evaluate_financebench_samples(
