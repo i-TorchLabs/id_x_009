@@ -81,6 +81,8 @@ def _classify_eval_error(exc: Exception) -> str:
     message = str(exc).lower()
     if "timeout" in message or "timed out" in message:
         return "UPSTREAM_TIMEOUT"
+    if "connection error" in message or "apiconnectionerror" in message:
+        return "UPSTREAM_CONNECTION"
     if "no available channel" in message or "无可用渠道" in message:
         return "UPSTREAM_NO_CHANNEL"
     if "429" in message or "rate limit" in message:
