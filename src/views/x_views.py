@@ -158,6 +158,54 @@ def _median(values: list[float]) -> float:
         return ordered[middle]
     return (ordered[middle - 1] + ordered[middle]) / 2
 
+
+def _sample_completion_tokens(item: object) -> Optional[int]:
+    if isinstance(item, dict):
+        raw = item.get("completion_tokens")
+    else:
+        raw = getattr(item, "completion_tokens", None)
+    if raw is None:
+        return None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def _sample_latency_ms(item: object) -> Optional[float]:
+    if isinstance(item, dict):
+        raw = item.get("latency_ms")
+    else:
+        raw = getattr(item, "latency_ms", None)
+    if raw is None:
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def _estimate_throughput(samples: list) -> Optional[float]:
+    """生成吞吐（tokens/s）：优先取样本级 completion_tokens/latency 的中位数。"""
+    rates: list[float] = []
+    total_tokens = 0
+    total_ms = 0.0
+    for item in samples:
+        tokens = _sample_completion_tokens(item)
+        latency_ms = _sample_latency_ms(item)
+        if tokens is None or latency_ms is None:
+            continue
+        rates.append(tokens / (latency_ms / 1000.0))
+        total_tokens += tokens
+        total_ms += latency_ms
+    if rates:
+        return round(_median(rates), 3)
+    if total_tokens > 0 and total_ms > 0:
+        return round(total_tokens / (total_ms / 1000.0), 3)
+    return None
+
 _MODULE_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_FINQA_SAMPLES = _MODULE_ROOT / "data" / "finqa" / "finqa_test_100.json"
 
@@ -438,11 +486,10 @@ async def view_models(
     name: Optional[str] = None,
     series: Optional[str] = None,
     model_name: Optional[str] = None,
-    q: Optional[str] = None,
     page: Optional[int] = 1,
     page_size: Optional[int] = _DEFAULT_PAGE_SIZE,
 ) -> ModelsPageType:
-    """模型列表；名称/厂商/系列/Model-Name 支持模糊筛选，``q`` 为跨字段关键词。"""
+    """模型列表；模型名称/厂商/系列/Model-Name 模糊筛选，多条件 AND 组合。"""
     page, page_size = _normalize_page(page, page_size)
     try:
         async with get_session()() as session:
@@ -453,7 +500,6 @@ async def view_models(
             vendor_q = (vendor or "").strip()
             series_q = (series or "").strip()
             model_name_q = (model_name or "").strip()
-            keyword = (q or "").strip()
             if name_q:
                 stmt = stmt.where(Model.name.ilike(_ilike_pattern(name_q)))
             if vendor_q:
@@ -462,15 +508,6 @@ async def view_models(
                 stmt = stmt.where(Model.series.ilike(_ilike_pattern(series_q)))
             if model_name_q:
                 stmt = stmt.where(Model.model_name.ilike(_ilike_pattern(model_name_q)))
-            if keyword:
-                pat = _ilike_pattern(keyword)
-                stmt = stmt.where(
-                    Model.name.ilike(pat)
-                    | Model.vendor.ilike(pat)
-                    | Model.series.ilike(pat)
-                    | Model.version.ilike(pat)
-                    | Model.model_name.ilike(pat)
-                )
             rows, total = await _paginate(session, stmt, page, page_size)
             return ModelsPageType(
                 items=[_model_to_type(m) for m in rows],
@@ -1347,6 +1384,7 @@ async def _run_domain_eval(
         session, evaluations, api_model, model=task.model
     )
     latency_p50 = round(_median([item.latency_ms for item in evaluations]), 3)
+    throughput = _estimate_throughput(list(evaluations))
 
     task.progress = 100
     task.status = "Done"
@@ -1363,14 +1401,15 @@ async def _run_domain_eval(
             composite_score=float(composite),
             cost_per_task=cost_per_task,
             latency_p50=latency_p50,
-            throughput=None,
+            throughput=throughput,
         )
     )
     await session.commit()
     logger.info(
         f"{tag} 任务完成 Done | format=domain source={source} "
         f"composite={composite} domains={domain_scores} "
-        f"cost_per_task={cost_per_task} latency_p50_ms={latency_p50}"
+        f"cost_per_task={cost_per_task} latency_p50_ms={latency_p50} "
+        f"throughput_tps={throughput}"
     )
 
 
@@ -1459,6 +1498,7 @@ async def _run_financebench_eval(
     )
     composite = round(sum(scores) / len(scores), 2)
     latency_p50 = round(_median([item["latency_ms"] for item in sample_results]), 3)
+    throughput = _estimate_throughput(list(sample_results))
     task.progress = 100
     task.status = "Done"
     # FinanceBench 仅覆盖业务专项；其余五域无对应样本，记 0
@@ -1475,14 +1515,14 @@ async def _run_financebench_eval(
             composite_score=composite,
             cost_per_task=cost_per_task,
             latency_p50=latency_p50,
-            throughput=None,
+            throughput=throughput,
         )
     )
     await session.commit()
     logger.info(
         f"{tag} 任务完成 Done | format=financebench "
         f"composite={composite} cost_per_task={cost_per_task} "
-        f"latency_p50_ms={latency_p50} "
+        f"latency_p50_ms={latency_p50} throughput_tps={throughput} "
         f"pass={pass_count}/{len(sample_results)} "
         f"fail={fail_count} unparseable={unparseable_count}"
     )
@@ -1765,6 +1805,7 @@ async def view_task_report(task_uid: str) -> TaskReportType:
                 .where(EvalSampleResult.task_id == task.id)
                 .order_by(EvalSampleResult.id)
             )
+            sample_rows = list(sample_query.scalars().all())
             sample_results = [
                 SampleResultType(
                     sample_id=item.sample_id,
@@ -1779,7 +1820,7 @@ async def view_task_report(task_uid: str) -> TaskReportType:
                     total_tokens=item.total_tokens,
                     latency_ms=item.latency_ms,
                 )
-                for item in sample_query.scalars().all()
+                for item in sample_rows
             ]
             if r is None:
                 return TaskReportType(
@@ -1793,6 +1834,14 @@ async def view_task_report(task_uid: str) -> TaskReportType:
                     sample_results=sample_results,
                 )
 
+            # 历史任务曾把 throughput 写死为 NULL；有样本明细时即时回填
+            throughput = r.throughput
+            if throughput is None and sample_rows:
+                throughput = _estimate_throughput(sample_rows)
+                if throughput is not None:
+                    r.throughput = throughput
+                    await session.commit()
+
             return TaskReportType(
                 success=True,
                 message="ok",
@@ -1803,7 +1852,7 @@ async def view_task_report(task_uid: str) -> TaskReportType:
                 composite_score=r.composite_score,
                 cost_per_task=r.cost_per_task,
                 latency_p50=r.latency_p50,
-                throughput=r.throughput,
+                throughput=throughput,
                 domain_scores=_result_domain_scores(r),
                 fingerprint=task.fingerprint,
                 sample_results=sample_results,
@@ -1831,6 +1880,28 @@ async def view_score_cost_graph(
             for r in rows:
                 if r.model_id not in latest:
                     latest[r.model_id] = r
+
+            # 回填历史 NULL 吞吐，避免看板一直显示 —
+            missing = [r for r in latest.values() if r.throughput is None]
+            if missing:
+                sample_map: Dict[int, list] = defaultdict(list)
+                sample_rows = (
+                    await session.execute(
+                        select(EvalSampleResult).where(
+                            EvalSampleResult.task_id.in_([r.task_id for r in missing])
+                        )
+                    )
+                ).scalars().all()
+                for item in sample_rows:
+                    sample_map[item.task_id].append(item)
+                dirty = False
+                for r in missing:
+                    estimated = _estimate_throughput(sample_map.get(r.task_id, []))
+                    if estimated is not None:
+                        r.throughput = estimated
+                        dirty = True
+                if dirty:
+                    await session.commit()
 
             points: List[ScorePointType] = []
             for r in latest.values():

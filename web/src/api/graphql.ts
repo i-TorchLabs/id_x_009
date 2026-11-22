@@ -470,7 +470,6 @@ export const evalGraphqlApi = {
     name?: string;
     series?: string;
     modelName?: string;
-    q?: string;
     page?: number;
     pageSize?: number;
   }): Promise<ListModelsPayload> => {
@@ -481,7 +480,6 @@ export const evalGraphqlApi = {
         $name: String
         $series: String
         $modelName: String
-        $q: String
         $page: Int
         $pageSize: Int
       ) {
@@ -491,7 +489,6 @@ export const evalGraphqlApi = {
           name: $name
           series: $series
           modelName: $modelName
-          q: $q
           page: $page
           pageSize: $pageSize
         ) {
@@ -527,7 +524,6 @@ export const evalGraphqlApi = {
         name: filter?.name || undefined,
         series: filter?.series || undefined,
         modelName: filter?.modelName || undefined,
-        q: filter?.q || undefined,
         page: filter?.page ?? 1,
         pageSize: filter?.pageSize ?? PAGE_SIZE,
       },

@@ -64,7 +64,6 @@ class Query:
         name: Optional[str] = None,
         series: Optional[str] = None,
         model_name: Optional[str] = None,
-        q: Optional[str] = None,
         page: Optional[int] = 1,
         page_size: Optional[int] = 16,
     ) -> ModelsPageType:
@@ -75,7 +74,6 @@ class Query:
             name=name,
             series=series,
             model_name=model_name,
-            q=q,
             page=page,
             page_size=page_size,
         )

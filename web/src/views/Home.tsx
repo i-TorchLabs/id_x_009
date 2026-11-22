@@ -1037,15 +1037,15 @@ export default function Home() {
   const [modelsNotice, setModelsNotice] = useState("");
   const [modelsPage, setModelsPage] = useState(1);
   const [modelsTotal, setModelsTotal] = useState(0);
-  const [mfQ, setMfQ] = useState("");
   const [mfName, setMfName] = useState("");
   const [mfVendor, setMfVendor] = useState("");
   const [mfSeries, setMfSeries] = useState("");
+  const [mfModelName, setMfModelName] = useState("");
   const [modelsFilter, setModelsFilter] = useState<{
-    q?: string;
     name?: string;
     vendor?: string;
     series?: string;
+    modelName?: string;
   }>({});
   const modelsFilterRef = useRef(modelsFilter);
   modelsFilterRef.current = modelsFilter;
@@ -1053,15 +1053,15 @@ export default function Home() {
   modelsPageRef.current = modelsPage;
 
   const modelsFilterActive = Boolean(
-    modelsFilter.q || modelsFilter.name || modelsFilter.vendor || modelsFilter.series,
+    modelsFilter.name || modelsFilter.vendor || modelsFilter.series || modelsFilter.modelName,
   );
 
   const loadModels = useCallback(async (
     filter?: {
-      q?: string;
       name?: string;
       vendor?: string;
       series?: string;
+      modelName?: string;
     },
     page?: number,
   ) => {
@@ -1071,10 +1071,10 @@ export default function Home() {
     setModelsError("");
     try {
       const r = await evalGraphqlApi.listModels({
-        q: f.q || undefined,
         name: f.name || undefined,
         vendor: f.vendor || undefined,
         series: f.series || undefined,
+        modelName: f.modelName || undefined,
         page: p,
         pageSize: PAGE_SIZE,
       });
@@ -1090,21 +1090,21 @@ export default function Home() {
 
   const applyModelsFilter = useCallback(() => {
     const next = {
-      q: mfQ.trim() || undefined,
       name: mfName.trim() || undefined,
       vendor: mfVendor.trim() || undefined,
       series: mfSeries.trim() || undefined,
+      modelName: mfModelName.trim() || undefined,
     };
     setModelsFilter(next);
     setModelsPage(1);
     void loadModels(next, 1);
-  }, [mfQ, mfName, mfVendor, mfSeries, loadModels]);
+  }, [mfName, mfVendor, mfSeries, mfModelName, loadModels]);
 
   const resetModelsFilter = useCallback(() => {
-    setMfQ("");
     setMfName("");
     setMfVendor("");
     setMfSeries("");
+    setMfModelName("");
     const next = {};
     setModelsFilter(next);
     setModelsPage(1);
@@ -1534,7 +1534,7 @@ export default function Home() {
               { label: tx("home.colInputPrice"), value: formatPrice(selectedPoint.inputPricePer1m, tx("home.pendingPrice")) },
               { label: tx("home.colOutputPrice"), value: formatPrice(selectedPoint.outputPricePer1m, tx("home.pendingPrice")) },
               { label: tx("home.latencyP50"), value: selectedPoint.latencyP50 == null ? "—" : `${selectedPoint.latencyP50.toFixed(0)}ms` },
-              { label: tx("home.throughput"), value: selectedPoint.throughput == null ? "—" : `${selectedPoint.throughput.toFixed(1)}/s` },
+              { label: tx("home.throughput"), value: selectedPoint.throughput == null ? "—" : `${selectedPoint.throughput.toFixed(1)} tok/s` },
             ].map((s) => (
               <div
                 key={s.label}
@@ -1990,7 +1990,7 @@ export default function Home() {
             <span style={{ color: fg3 }}>P50</span>
             <span>{hoverPoint.point.latencyP50 == null ? "—" : `${hoverPoint.point.latencyP50.toFixed(0)}ms`}</span>
             <span style={{ color: fg3 }}>{tx("home.throughput")}</span>
-            <span>{hoverPoint.point.throughput == null ? "—" : `${hoverPoint.point.throughput.toFixed(1)}/s`}</span>
+            <span>{hoverPoint.point.throughput == null ? "—" : `${hoverPoint.point.throughput.toFixed(1)} tok/s`}</span>
             <span style={{ color: fg3 }}>{tx("home.valueForMoney")}</span>
             <span>#{hoverPoint.point.valueRank}</span>
           </div>
@@ -2230,27 +2230,18 @@ export default function Home() {
         }}
         style={{
           display: "grid",
-          gridTemplateColumns: isNarrow ? "1fr" : "1.4fr 1fr 1fr 1fr auto",
+          gridTemplateColumns: isNarrow ? "1fr" : "1.2fr 1fr 1fr 1.2fr auto",
           gap: "10px",
           alignItems: "end",
           marginBottom: "20px",
         }}
       >
         <div>
-          <FieldLabel color={fg3}>{tx("home.modelFilterKeyword")}</FieldLabel>
-          <input
-            value={mfQ}
-            onChange={(e) => setMfQ(e.target.value)}
-            placeholder={tx("home.modelFilterKeywordPlaceholder")}
-            style={inputBaseStyle(fg, inputBg, inputBorder)}
-          />
-        </div>
-        <div>
           <FieldLabel color={fg3}>{tx("home.modelFilterName")}</FieldLabel>
           <input
             value={mfName}
             onChange={(e) => setMfName(e.target.value)}
-            placeholder={tx("home.modelFilterName")}
+            placeholder={tx("home.modelFilterNamePlaceholder")}
             style={inputBaseStyle(fg, inputBg, inputBorder)}
           />
         </div>
@@ -2259,7 +2250,7 @@ export default function Home() {
           <input
             value={mfVendor}
             onChange={(e) => setMfVendor(e.target.value)}
-            placeholder={tx("home.modelFilterVendor")}
+            placeholder={tx("home.modelFilterVendorPlaceholder")}
             style={inputBaseStyle(fg, inputBg, inputBorder)}
           />
         </div>
@@ -2268,7 +2259,16 @@ export default function Home() {
           <input
             value={mfSeries}
             onChange={(e) => setMfSeries(e.target.value)}
-            placeholder={tx("home.modelFilterSeries")}
+            placeholder={tx("home.modelFilterSeriesPlaceholder")}
+            style={inputBaseStyle(fg, inputBg, inputBorder)}
+          />
+        </div>
+        <div>
+          <FieldLabel color={fg3}>{tx("home.modelFilterModelName")}</FieldLabel>
+          <input
+            value={mfModelName}
+            onChange={(e) => setMfModelName(e.target.value)}
+            placeholder={tx("home.modelFilterModelNamePlaceholder")}
             style={inputBaseStyle(fg, inputBg, inputBorder)}
           />
         </div>
@@ -2291,7 +2291,9 @@ export default function Home() {
             accentFg={accentFg}
             divider={divider}
             onClick={resetModelsFilter}
-            disabled={!modelsFilterActive && !mfQ && !mfName && !mfVendor && !mfSeries}
+            disabled={
+              !modelsFilterActive && !mfName && !mfVendor && !mfSeries && !mfModelName
+            }
           >
             {tx("home.modelFilterReset")}
           </PillButton>
@@ -3065,7 +3067,7 @@ export default function Home() {
                       {[
                         { label: tx("home.costPerTask"), value: formatCost(report.costPerTask) },
                         { label: tx("home.latencyP50"), value: report.latencyP50 == null ? "—" : `${report.latencyP50.toFixed(0)}ms` },
-                        { label: tx("home.throughput"), value: report.throughput == null ? "—" : `${report.throughput.toFixed(1)}/s` },
+                        { label: tx("home.throughput"), value: report.throughput == null ? "—" : `${report.throughput.toFixed(1)} tok/s` },
                       ].map((s) => (
                         <div
                           key={s.label}
