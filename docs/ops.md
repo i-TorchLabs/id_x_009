@@ -42,6 +42,13 @@ cp .env.example .env       # 设置 POSTGRES_PASSWORD（及可选 ID009_LLM_*）
 | PostgreSQL | **55409**（`DB_HOST_PORT`） | 仅绑定 `DB_BIND_ADDR`（默认 127.0.0.1） |
 | GraphQL 路径 | — | `/b/id_x_009/graphql` |
 
+## 数据库连接
+
+同 Pod 内 service → db 固定 `DB_HOST=127.0.0.1:5432`（`up.sh` 的 `-e` 强制注入）。  
+不要使用 `host.containers.internal` / `host.docker.internal`：它们解析为 `169.254.1.2`，宿主机上 PostgreSQL 映射端口是 `${DB_HOST_PORT}`（默认 55409），连 `…:5432` 会一直 `Connection refused`，并在启动重试耗尽后崩溃重启。
+
+启动时 DB 就绪重试：**16 次 × 1s**。进程环境优先于镜像/模块 `.env`，避免错误主机覆盖容器注入值。
+
 ## 日志透传
 
 `id_x_009-service` 容器内 `/app/i-Core/logs` **bind mount** 到模块根：
@@ -54,6 +61,18 @@ x_models/id_x_009/logs/
 ```
 
 `up.sh` 使用 `-v …/logs:/app/i-Core/logs:z,U`；若旧容器仍挂命名卷 `id_x_009_logs`，会自动重建切换。宿主机可直接 `tail -f x_models/id_x_009/logs/info.log`。
+
+### 测评任务进度日志
+
+评测关键节点统一带 `[eval]` 前缀（含 `uid=` / `id=`），覆盖：创建 → 线程启动 → Running → 样本加载 → 逐条样本（pass/fail/延迟/tokens）→ 汇总落库 → Done/Failed，以及暂停/恢复。
+
+```bash
+# 跟踪全部评测进度
+tail -f x_models/id_x_009/logs/info.log | grep --line-buffered '\[eval\]'
+
+# 跟踪单个任务
+grep 'uid=t-YYYYMMDD-xxxx' x_models/id_x_009/logs/info.log
+```
 
 ## 种子数据（`init/02_seed.sql`，首次建库自动执行）
 

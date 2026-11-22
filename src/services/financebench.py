@@ -237,10 +237,16 @@ async def evaluate_financebench_samples(
     samples: Sequence[FinanceBenchSample],
     temperature: float = 0.0,
     max_tokens: int = 2048,
+    on_sample_done: Any = None,
 ) -> list[dict[str, Any]]:
-    """Run FinanceBench samples and return auditable sample-level records."""
+    """Run FinanceBench samples and return auditable sample-level records.
+
+    ``on_sample_done`` 可选：``async (index, total, record) -> None``，
+    在每条样本完成后回调，供运维进度日志 / DB progress 更新。
+    """
     results: list[dict[str, Any]] = []
-    for sample in samples:
+    total = len(samples)
+    for index, sample in enumerate(samples, start=1):
         result: LLMChatResult = await client.chat(
             model=model,
             messages=[{"role": "user", "content": sample.model_prompt()}],
@@ -248,20 +254,21 @@ async def evaluate_financebench_samples(
             max_tokens=max_tokens,
         )
         score = score_financebench_numeric(result.answer, sample)
-        results.append(
-            {
-                "sample_id": sample.sample_id,
-                "business_module": sample.business_module,
-                "requested_model": result.requested_model,
-                "returned_model": result.returned_model,
-                "response_id": result.response_id,
-                "answer": result.answer,
-                "score": score,
-                "prompt_tokens": result.prompt_tokens,
-                "completion_tokens": result.completion_tokens,
-                "total_tokens": result.total_tokens,
-                "latency_ms": result.latency_ms,
-            }
-        )
+        record = {
+            "sample_id": sample.sample_id,
+            "business_module": sample.business_module,
+            "requested_model": result.requested_model,
+            "returned_model": result.returned_model,
+            "response_id": result.response_id,
+            "answer": result.answer,
+            "score": score,
+            "prompt_tokens": result.prompt_tokens,
+            "completion_tokens": result.completion_tokens,
+            "total_tokens": result.total_tokens,
+            "latency_ms": result.latency_ms,
+        }
+        results.append(record)
+        if on_sample_done is not None:
+            await on_sample_done(index, total, record)
     return results
 

@@ -1,0 +1,152 @@
+[
+  {
+    "sample_id": "l-01",
+    "domain": "language",
+    "prompt": "Translate to English. Reply with only the translation, no quotes:\n今天天气很好。",
+    "expected_answer": "The weather is very good today.",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-02",
+    "domain": "language",
+    "prompt": "Rewrite in lowercase only. Reply with only the rewritten text:\nHello World",
+    "expected_answer": "hello world",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-03",
+    "domain": "language",
+    "prompt": "Extract the email address. Reply with only the email:\nContact Jane at jane.doe@example.com for details.",
+    "expected_answer": "jane.doe@example.com",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-04",
+    "domain": "language",
+    "prompt": "Join these words with a single hyphen. Reply with only the result:\nmachine learning",
+    "expected_answer": "machine-learning",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-05",
+    "domain": "language",
+    "prompt": "Count the words in the sentence below. Reply with only the integer:\nThe quick brown fox jumps.",
+    "expected_answer": "5",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-06",
+    "domain": "language",
+    "prompt": "Convert to Title Case. Reply with only the result:\nlarge language models",
+    "expected_answer": "Large Language Models",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-07",
+    "domain": "language",
+    "prompt": "Remove all punctuation. Reply with only the result:\nHello, world!",
+    "expected_answer": "Hello world",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-08",
+    "domain": "language",
+    "prompt": "Output the plural of 'criterion'. Reply with only the word.",
+    "expected_answer": "criteria",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-09",
+    "domain": "language",
+    "prompt": "Reverse the word order. Reply with only the result:\nred blue green",
+    "expected_answer": "green blue red",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-10",
+    "domain": "language",
+    "prompt": "Fill the blank with one English word: The capital of Japan is ____. Reply with only that word.",
+    "expected_answer": "Tokyo",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-11",
+    "domain": "language",
+    "prompt": "Normalize whitespace to single spaces. Reply with only the result:\none   two    three",
+    "expected_answer": "one two three",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-12",
+    "domain": "language",
+    "prompt": "Return the ISO 639-1 language code for French. Reply with only the code.",
+    "expected_answer": "fr",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-13",
+    "domain": "language",
+    "prompt": "Spell out the number 7 in English. Reply with only the word.",
+    "expected_answer": "seven",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-14",
+    "domain": "language",
+    "prompt": "Replace every space with underscore. Reply with only the result:\nhello world test",
+    "expected_answer": "hello_world_test",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "l-15",
+    "domain": "language",
+    "prompt": "Return only the first three letters of 'evaluation'.",
+    "expected_answer": "eva",
+    "metadata": {
+      "task": "arena-hard-gen-lite",
+      "metric": "exact_match"
+    }
+  }
+]

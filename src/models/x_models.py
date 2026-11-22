@@ -9,6 +9,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import (
@@ -132,33 +133,61 @@ class PasswordResetToken(Base):
 
 
 
-class Model(Base):
+class ModelsInfo(Base):
+    """统一模型信息表（原 models + model_info）：注册信息、网关凭据与单价。"""
 
-    __tablename__ = "models"
+    __tablename__ = "models_info"
+    __table_args__ = (
+        UniqueConstraint("name", "version", name="uq_models_info_name_version"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(128), nullable=False, comment="模型名称")
+    name: Mapped[str] = mapped_column(
+        String(128), nullable=False, index=True, comment="模型名称"
+    )
     vendor: Mapped[str] = mapped_column(
         String(64), nullable=False, index=True, comment="厂商"
     )
     series: Mapped[str] = mapped_column(
-        String(64), nullable=False, index=True, comment="模型系列"
+        String(128), nullable=False, index=True, comment="模型系列"
     )
-    version: Mapped[str] = mapped_column(String(64), nullable=False, comment="版本")
+    version: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="gateway", comment="版本"
+    )
+    base_url: Mapped[str] = mapped_column(
+        String(512),
+        nullable=False,
+        default="https://apihk.chinarouter.net/v1",
+        comment="OpenAI 兼容网关 Base URL",
+    )
+    api_key: Mapped[str] = mapped_column(
+        String(512), nullable=False, default="", comment="调用网关的 API Key"
+    )
+    model_name: Mapped[str] = mapped_column(
+        String(128),
+        nullable=False,
+        default="",
+        index=True,
+        comment="上游 Chat Completions 使用的 model 字段",
+    )
     access_type: Mapped[str] = mapped_column(
         String(32), nullable=False, default="api", comment="接入方式：selfhost/api/opensource"
     )
     backend: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="vllm", comment="推理后端：vllm/trtllm/tgi/api"
+        String(32), nullable=False, default="api", comment="推理后端：vllm/trtllm/tgi/api"
     )
     params_b: Mapped[Optional[float]] = mapped_column(
         Float, nullable=True, comment="参数量（B，商用 API 为空）"
     )
     context_length: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True, comment="上下文长度（tokens）"
+        Integer, nullable=True, default=131072, comment="上下文长度（tokens）"
     )
-    input_price_per_1m: Mapped[Optional[float]] = mapped_column(Float, nullable=True, comment="输入价格（USD/1M tokens）")
-    output_price_per_1m: Mapped[Optional[float]] = mapped_column(Float, nullable=True, comment="输出价格（USD/1M tokens）")
+    input_price_per_1m: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=False, default=0, comment="输入价格（USD/1M tokens）"
+    )
+    output_price_per_1m: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=False, default=0, comment="输出价格（USD/1M tokens）"
+    )
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), default=_utcnow, comment="创建时间"
     )
@@ -166,6 +195,11 @@ class Model(Base):
     results: Mapped[List["EvalResult"]] = relationship(
         "EvalResult", back_populates="model"
     )
+
+
+# 兼容旧代码导入名
+Model = ModelsInfo
+ModelInfo = ModelsInfo
 
 
 class Dataset(Base):
@@ -191,6 +225,49 @@ class Dataset(Base):
         DateTime(timezone=True), default=_utcnow, comment="创建时间"
     )
 
+    samples: Mapped[List["DatasetSample"]] = relationship(
+        "DatasetSample", back_populates="dataset", cascade="all, delete-orphan"
+    )
+
+
+class DatasetSample(Base):
+    """Per-sample rows for domain evaluation datasets stored in Postgres."""
+
+    __tablename__ = "dataset_samples"
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_id", "sample_id", name="uq_dataset_samples_dataset_sample"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dataset_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True,
+        comment="所属数据集",
+    )
+    sample_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, index=True, comment="样本外部标识"
+    )
+    domain: Mapped[str] = mapped_column(
+        String(64), nullable=False, index=True,
+        comment="能力域键：reasoning/language/alignment/longctx/multimodal/business",
+    )
+    prompt: Mapped[str] = mapped_column(Text, nullable=False, comment="评测提示词")
+    expected_answer: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="期望答案（exact-match 评分）"
+    )
+    sort_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, comment="排序序号"
+    )
+    metadata_json: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="可选 JSON 元数据"
+    )
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, comment="创建时间"
+    )
+
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="samples")
+
 
 class EvalTask(Base):
 
@@ -202,7 +279,7 @@ class EvalTask(Base):
     )
     name: Mapped[str] = mapped_column(String(256), nullable=False, comment="任务名称")
     model_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("models.id"), nullable=False, comment="评测模型"
+        Integer, ForeignKey("models_info.id"), nullable=False, comment="评测模型"
     )
     dataset_ids: Mapped[str] = mapped_column(
         Text, nullable=False, comment="数据集 ID 列表（JSON 数组字符串）"
@@ -239,7 +316,7 @@ class EvalTask(Base):
     result: Mapped[Optional["EvalResult"]] = relationship(
         "EvalResult", back_populates="task", uselist=False
     )
-    model: Mapped["Model"] = relationship("Model")
+    model: Mapped["ModelsInfo"] = relationship("ModelsInfo")
 
 
 class EvalResult(Base):
@@ -252,7 +329,7 @@ class EvalResult(Base):
         comment="关联评测任务",
     )
     model_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("models.id"), nullable=False, index=True, comment="模型"
+        Integer, ForeignKey("models_info.id"), nullable=False, index=True, comment="模型"
     )
     score_reasoning: Mapped[float] = mapped_column(
         Float, nullable=False, default=0, comment="客观知识与推理"
@@ -289,7 +366,7 @@ class EvalResult(Base):
     )
 
     task: Mapped["EvalTask"] = relationship("EvalTask", back_populates="result")
-    model: Mapped["Model"] = relationship("Model", back_populates="results")
+    model: Mapped["ModelsInfo"] = relationship("ModelsInfo", back_populates="results")
 
 
 class EvalSampleResult(Base):
@@ -302,7 +379,7 @@ class EvalSampleResult(Base):
         Integer, ForeignKey("eval_tasks.id"), nullable=False, index=True
     )
     model_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("models.id"), nullable=False, index=True
+        Integer, ForeignKey("models_info.id"), nullable=False, index=True
     )
     sample_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     business_module: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)

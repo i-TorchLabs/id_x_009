@@ -29,8 +29,8 @@ def main() -> int:
     token = os.getenv(args.token_env, "").strip()
     if not token:
         raise SystemExit(f"Missing GraphQL token environment variable: {args.token_env}")
-    query = "{ tasks { taskUid name modelId modelName status error } }"
-    tasks = call(args.api, token, query).get("data", {}).get("tasks", [])
+    query = "{ tasks(page: 1, pageSize: 500) { items { taskUid name modelId modelName status error } total } }"
+    tasks = call(args.api, token, query).get("data", {}).get("tasks", {}).get("items", []) or []
     selected = [task for task in tasks if args.name_contains in task.get("name", "")]
     print(json.dumps({
         "task_count": len(selected),

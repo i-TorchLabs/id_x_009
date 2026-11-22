@@ -1,6 +1,8 @@
 import asyncio
+import os
 import unittest
 from types import SimpleNamespace
+from unittest import mock
 
 from x_models.id_x_009.src.services.llm_client import (
     LLMConfig,
@@ -90,6 +92,15 @@ class LLMAdapterTests(unittest.TestCase):
     def test_http_url_rejected_outside_localhost(self):
         with self.assertRaises(LLMConfigurationError):
             LLMConfig(base_url="http://example.com/v1", api_key="test")
+
+    def test_loopback_rejected_by_default(self):
+        with self.assertRaises(LLMConfigurationError):
+            LLMConfig(base_url="http://127.0.0.1:8080/v1", api_key="test")
+
+    def test_loopback_allowed_with_flag(self):
+        with mock.patch.dict(os.environ, {"ID009_LLM_ALLOW_LOCALHOST": "1"}):
+            cfg = LLMConfig(base_url="http://127.0.0.1:8080/v1", api_key="test")
+            self.assertIn("127.0.0.1", cfg.base_url)
 
 
 if __name__ == "__main__":

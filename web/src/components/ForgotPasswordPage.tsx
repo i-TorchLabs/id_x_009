@@ -9,12 +9,15 @@ import { FormEvent, useState } from "react";
 import LeftPanel from "@/components/LeftPanel";
 import ForgotPasswordForm from "@/components/ForgotPasswordForm";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LocaleToggle } from "@/components/LocaleToggle";
 import { EMAIL_REGEX } from "@/components/auth/constants";
 import { useTheme } from "@/context/ThemeContext";
+import { useI18n } from "@/context/LocaleContext";
 import { userGraphqlApi } from "@/api/graphql";
 
 export default function ForgotPasswordPage() {
     const { theme } = useTheme();
+    const { t } = useI18n();
 
     const [email, setEmail] = useState("");
     const [agreeTerms, setAgreeTerms] = useState(false);
@@ -30,13 +33,13 @@ export default function ForgotPasswordPage() {
         let ok = true;
         const trimmed = email.trim();
         if (!trimmed || !EMAIL_REGEX.test(trimmed)) {
-            setEmailError("请输入有效邮箱");
+            setEmailError(t("forgotPassword.errorValidEmailRequired"));
             ok = false;
         } else {
             setEmailError("");
         }
         if (!agreeTerms) {
-            setTermsError("请先同意服务条款");
+            setTermsError(t("forgotPassword.errorTermsRequired"));
             ok = false;
         } else {
             setTermsError("");
@@ -58,13 +61,13 @@ export default function ForgotPasswordPage() {
                 setIsSuccess(true);
                 setSuccessMessage(
                     result.forgotPassword.message ||
-                        `若邮箱 ${email.trim()} 已注册，重置说明已发送`,
+                        t("forgotPassword.successBody", { email: email.trim() }),
                 );
             } else {
-                setErrorMsg(result.forgotPassword.message || "请求失败，请稍后重试");
+                setErrorMsg(result.forgotPassword.message || t("forgotPassword.errorRequestFailed"));
             }
         } catch (err) {
-            setErrorMsg(err instanceof Error ? err.message : "网络错误，请稍后重试");
+            setErrorMsg(err instanceof Error ? err.message : t("common.networkError"));
         } finally {
             setIsSubmitting(false);
         }
@@ -72,7 +75,8 @@ export default function ForgotPasswordPage() {
 
     return (
         <div className="relative h-screen overflow-hidden">
-            <div className="absolute top-4 right-4 z-50 flex items-center gap-1">
+            <div className="absolute top-4 right-4 z-50 flex items-center gap-0">
+                <LocaleToggle />
                 <ThemeToggle />
             </div>
 

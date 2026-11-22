@@ -40,7 +40,7 @@ FROM docker.io/library/python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
-    TZ=Asia/Shanghai \
+    TZ=Asia/Hong_Kong \
     HOME=/home/app
 
 WORKDIR /app/i-Core
@@ -52,6 +52,9 @@ RUN sed -i 's|http://deb.debian.org|http://mirrors.aliyun.com|g' /etc/apt/source
     && apt-get install -y --no-install-recommends \
         libpq5 \
         curl \
+        tzdata \
+    && ln -snf /usr/share/zoneinfo/Asia/Hong_Kong /etc/localtime \
+    && echo Asia/Hong_Kong > /etc/timezone \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --create-home --shell /usr/sbin/nologin app \

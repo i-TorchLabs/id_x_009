@@ -13,6 +13,8 @@ services:
     container_name: id_x_009-db
     restart: unless-stopped
     environment:
+      TZ: ${TZ:-Asia/Hong_Kong}
+      PGTZ: ${TZ:-Asia/Hong_Kong}
       POSTGRES_DB: ${POSTGRES_DB:-id_x_009}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
@@ -37,12 +39,17 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      TZ: ${TZ:-Asia/Hong_Kong}
       DB_NAME: ${POSTGRES_DB:-id_x_009}
       DB_HOST: db
       DB_PORT: "5432"
       DB_USERNAME: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
       PROJECT_PATH: /app/i-Core
+      ID009_DAILY_EVAL_ENABLED: ${ID009_DAILY_EVAL_ENABLED:-true}
+      ID009_DAILY_EVAL_HOUR: ${ID009_DAILY_EVAL_HOUR:-0}
+      ID009_DAILY_EVAL_MINUTE: ${ID009_DAILY_EVAL_MINUTE:-0}
+      ID009_DAILY_EVAL_TZ: ${ID009_DAILY_EVAL_TZ:-Asia/Hong_Kong}
     volumes:
       # 与 up.sh 一致：容器 /app/i-Core/logs → 模块根 x_models/id_x_009/logs
       # z=SELinux 共享标签；U=按容器用户 chown（rootless 可写）
@@ -67,6 +74,8 @@ services:
     image: localhost/id_x_009-web
     container_name: id_x_009-web
     restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Hong_Kong}
     depends_on:
       - service
     healthcheck:
@@ -80,6 +89,8 @@ services:
     image: ${HAPROXY_IMAGE:-docker.io/library/haproxy:3.0}
     container_name: id_x_009-haproxy
     restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Hong_Kong}
     volumes:
       - ./haproxy.compose.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro,z
     ports:

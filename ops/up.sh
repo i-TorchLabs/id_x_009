@@ -46,10 +46,31 @@ WEB_IMAGE="localhost/${PROJECT_NAME}-web"
 POD_PORT="${POD_PORT:-8009}"
 DB_HOST_PORT="${DB_HOST_PORT:-55409}"
 DB_BIND_ADDR="${DB_BIND_ADDR:-127.0.0.1}"
+# 全容器统一时区（Asia/Hong_Kong）
+TZ_VALUE="${TZ:-Asia/Hong_Kong}"
 
 if [ -z "${ID009_LLM_API_KEY:-}" ]; then
-  echo "[up] 提示: 未设置 ID009_LLM_API_KEY，真实评测 / LLM 调用将不可用；模拟模式不受影响" >&2
+  echo "[up] 警告: 未设置 ID009_LLM_API_KEY，真实评测将无法调用网关" >&2
 fi
+
+_container_tz() {
+  podman inspect "$1" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
+    | awk -F= '$1=="TZ"{print $2; exit}'
+}
+
+_ensure_container_tz() {
+  # 若已有容器但未设置 Asia/Hong_Kong，则重建以统一时区
+  local name="$1"
+  if ! podman container exists "${name}"; then
+    return 0
+  fi
+  local cur
+  cur="$(_container_tz "${name}")"
+  if [ "${cur}" != "${TZ_VALUE}" ]; then
+    echo "[up] ${name} 时区为 '${cur:-unset}'，将重建为 ${TZ_VALUE}"
+    podman rm -f "${name}" >/dev/null
+  fi
+}
 
 # ============================================
 # 1. 构建镜像（若不存在或指定 --build）
@@ -110,11 +131,14 @@ fi
 # ============================================
 
 # -- db (pgvector/pg18) --
+_ensure_container_tz "${PROJECT_NAME}-db"
 if ! podman container exists "${PROJECT_NAME}-db"; then
   podman run -d \
     --pod "${PROJECT_NAME}" \
     --name "${PROJECT_NAME}-db" \
     --restart unless-stopped \
+    -e TZ="${TZ_VALUE}" \
+    -e PGTZ="${TZ_VALUE}" \
     -e POSTGRES_DB="${POSTGRES_DB}" \
     -e POSTGRES_USER="${POSTGRES_USER}" \
     -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
@@ -126,7 +150,7 @@ if ! podman container exists "${PROJECT_NAME}-db"; then
     --health-retries 10 \
     --health-start-period 20s \
     "${POSTGRES_IMAGE}"
-  echo "[up] ${PROJECT_NAME}-db 已启动（${POSTGRES_IMAGE}）"
+  echo "[up] ${PROJECT_NAME}-db 已启动（${POSTGRES_IMAGE}，TZ=${TZ_VALUE}）"
 else
   echo "[up] ${PROJECT_NAME}-db 已存在，跳过"
 fi
@@ -151,23 +175,32 @@ if podman container exists "${PROJECT_NAME}-service"; then
   if [ "${current_logs_src}" != "${LOGS_HOST_DIR}" ]; then
     echo "[up] ${PROJECT_NAME}-service 的 logs 挂载需切换到 ${LOGS_HOST_DIR}，重建容器"
     podman rm -f "${PROJECT_NAME}-service" >/dev/null
-  else
-    echo "[up] ${PROJECT_NAME}-service 已存在，跳过"
   fi
 fi
+_ensure_container_tz "${PROJECT_NAME}-service"
 
 if ! podman container exists "${PROJECT_NAME}-service"; then
+  # 同 Pod 内置库必须走回环；禁止 host.containers.internal（会解析到
+  # 169.254.1.2，而宿主机映射端口是 DB_HOST_PORT，5432 必然 Connection refused）
+  if [ -n "${DB_HOST:-}" ] && [ "${DB_HOST}" != "127.0.0.1" ] && [ "${DB_HOST}" != "localhost" ]; then
+    echo "[up] 警告: ops/.env 中 DB_HOST=${DB_HOST} 将被忽略，强制使用 127.0.0.1（Pod 内置 pgvector）" >&2
+  fi
   podman run -d \
     --pod "${PROJECT_NAME}" \
     --name "${PROJECT_NAME}-service" \
     --restart unless-stopped \
     --env-file .env \
+    -e TZ="${TZ_VALUE}" \
     -e DB_NAME="${POSTGRES_DB}" \
     -e DB_HOST=127.0.0.1 \
     -e DB_PORT=5432 \
     -e DB_USERNAME="${POSTGRES_USER}" \
     -e DB_PASSWORD="${POSTGRES_PASSWORD}" \
     -e PROJECT_PATH=/app/i-Core \
+    -e ID009_DAILY_EVAL_ENABLED="${ID009_DAILY_EVAL_ENABLED:-true}" \
+    -e ID009_DAILY_EVAL_HOUR="${ID009_DAILY_EVAL_HOUR:-0}" \
+    -e ID009_DAILY_EVAL_MINUTE="${ID009_DAILY_EVAL_MINUTE:-0}" \
+    -e ID009_DAILY_EVAL_TZ="${ID009_DAILY_EVAL_TZ:-Asia/Hong_Kong}" \
     -v "${LOGS_HOST_DIR}:/app/i-Core/logs:z,U" \
     --health-cmd "curl -sf -X POST http://127.0.0.1:7000/b/id_x_009/graphql -H 'Content-Type: application/json' -d '{\"query\":\"{ health { status } }\"}' || exit 1" \
     --health-interval 15s \
@@ -175,32 +208,38 @@ if ! podman container exists "${PROJECT_NAME}-service"; then
     --health-retries 10 \
     --health-start-period 30s \
     "${SERVICE_IMAGE}"
-  echo "[up] ${PROJECT_NAME}-service 已启动（logs → ${LOGS_HOST_DIR}）"
+  echo "[up] ${PROJECT_NAME}-service 已启动（logs → ${LOGS_HOST_DIR}，TZ=${TZ_VALUE}）"
+else
+  echo "[up] ${PROJECT_NAME}-service 已存在，跳过"
 fi
 
 # -- web --
+_ensure_container_tz "${PROJECT_NAME}-web"
 if ! podman container exists "${PROJECT_NAME}-web"; then
   podman run -d \
     --pod "${PROJECT_NAME}" \
     --name "${PROJECT_NAME}-web" \
     --restart unless-stopped \
+    -e TZ="${TZ_VALUE}" \
     --health-cmd "wget -q -O /dev/null http://127.0.0.1:2000/ || exit 1" \
     --health-interval 15s \
     --health-timeout 5s \
     --health-retries 10 \
     --health-start-period 20s \
     "${WEB_IMAGE}"
-  echo "[up] ${PROJECT_NAME}-web 已启动"
+  echo "[up] ${PROJECT_NAME}-web 已启动（TZ=${TZ_VALUE}）"
 else
   echo "[up] ${PROJECT_NAME}-web 已存在，跳过"
 fi
 
 # -- haproxy --
+_ensure_container_tz "${PROJECT_NAME}-haproxy"
 if ! podman container exists "${PROJECT_NAME}-haproxy"; then
   podman run -d \
     --pod "${PROJECT_NAME}" \
     --name "${PROJECT_NAME}-haproxy" \
     --restart unless-stopped \
+    -e TZ="${TZ_VALUE}" \
     -v ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro,z \
     "${HAPROXY_IMAGE}"
   echo "[up] ${PROJECT_NAME}-haproxy 已启动"

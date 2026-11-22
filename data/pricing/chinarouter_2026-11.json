@@ -1,34 +1,142 @@
 {
   "currency": "USD",
-  "effective_at": "2026-11-21",
-  "source": "user-provided-pricing-table",
+  "effective_at": "2026-11-22",
+  "source": "模型价格表.xlsx + User_Guide_20261117",
   "models": [
-    {"model_key":"deepseek-v4-flash-0731","input_price_per_1m":0.352941,"output_price_per_1m":1.0588},
-    {"model_key":"deepseek-v4-pro-0813","input_price_per_1m":1.0588,"output_price_per_1m":3.1765},
-    {"model_key":"deepseek-v4.1-flash","input_price_per_1m":0.235294,"output_price_per_1m":0.941176},
-    {"model_key":"deepseek-v4.1-flash-1017","input_price_per_1m":0.235294,"output_price_per_1m":0.941176},
-    {"model_key":"qwen3.8-flash","input_price_per_1m":0.111765,"output_price_per_1m":0.377206},
-    {"model_key":"qwen3.8-max","input_price_per_1m":1.6767,"output_price_per_1m":5.0294},
-    {"model_key":"qwen4-max","input_price_per_1m":1.3975,"output_price_per_1m":4.1914},
-    {"model_key":"glm-5.3","input_price_per_1m":1.062,"output_price_per_1m":3.708},
-    {"model_key":"gpt-5.5","input_price_per_1m":4,"output_price_per_1m":24},
-    {"model_key":"gpt-5.6-sol","input_price_per_1m":3.2,"output_price_per_1m":16},
-    {"model_key":"gpt-5.6-terra","input_price_per_1m":1.6,"output_price_per_1m":9.6},
-    {"model_key":"gpt-6-astra","input_price_per_1m":8,"output_price_per_1m":40},
-    {"model_key":"gpt-6-sol","input_price_per_1m":1.6,"output_price_per_1m":8},
-    {"model_key":"gpt-6.1-sol","input_price_per_1m":1.6,"output_price_per_1m":8},
-    {"model_key":"claude-fable-5","input_price_per_1m":9,"output_price_per_1m":45},
-    {"model_key":"claude-fable-5-1","input_price_per_1m":9,"output_price_per_1m":45},
-    {"model_key":"claude-fable-5-2","input_price_per_1m":7.2,"output_price_per_1m":36},
-    {"model_key":"claude-haiku-4-5-20251001","input_price_per_1m":0.9,"output_price_per_1m":4.5},
-    {"model_key":"claude-haiku-5-5","input_price_per_1m":0.09,"output_price_per_1m":0.45},
-    {"model_key":"claude-opus-4-5","input_price_per_1m":1.8,"output_price_per_1m":9},
-    {"model_key":"claude-opus-4-6","input_price_per_1m":4.5,"output_price_per_1m":22.5},
-    {"model_key":"claude-opus-4-7","input_price_per_1m":4.5,"output_price_per_1m":22.5},
-    {"model_key":"claude-opus-4-8","input_price_per_1m":4.5,"output_price_per_1m":22.5},
-    {"model_key":"claude-opus-5","input_price_per_1m":4.5,"output_price_per_1m":22.5},
-    {"model_key":"claude-opus-5-5","input_price_per_1m":3.6,"output_price_per_1m":18},
-    {"model_key":"claude-sonnet-4-6","input_price_per_1m":2.7,"output_price_per_1m":13.5},
-    {"model_key":"claude-sonnet-5","input_price_per_1m":1.8,"output_price_per_1m":9}
+    {
+      "model_key": "deepseek-v4-flash-0731",
+      "input_price_per_1m": 0.352941,
+      "output_price_per_1m": 1.0588
+    },
+    {
+      "model_key": "deepseek-v4-pro-0813",
+      "input_price_per_1m": 1.0588,
+      "output_price_per_1m": 3.1765
+    },
+    {
+      "model_key": "deepseek-v4.1-flash",
+      "input_price_per_1m": 0.235294,
+      "output_price_per_1m": 0.941176
+    },
+    {
+      "model_key": "deepseek-v4.1-flash-1017",
+      "input_price_per_1m": 0.235294,
+      "output_price_per_1m": 0.941176
+    },
+    {
+      "model_key": "qwen3.8-flash",
+      "input_price_per_1m": 0.111765,
+      "output_price_per_1m": 0.377206
+    },
+    {
+      "model_key": "qwen3.8-max",
+      "input_price_per_1m": 1.6767,
+      "output_price_per_1m": 5.0294
+    },
+    {
+      "model_key": "qwen4-max",
+      "input_price_per_1m": 1.3975,
+      "output_price_per_1m": 4.1914
+    },
+    {
+      "model_key": "glm-5.3",
+      "input_price_per_1m": 1.062,
+      "output_price_per_1m": 3.708
+    },
+    {
+      "model_key": "gpt-5.5",
+      "input_price_per_1m": 4.0,
+      "output_price_per_1m": 24.0
+    },
+    {
+      "model_key": "gpt-5.6-sol",
+      "input_price_per_1m": 3.2,
+      "output_price_per_1m": 16.0
+    },
+    {
+      "model_key": "gpt-5.6-terra",
+      "input_price_per_1m": 1.6,
+      "output_price_per_1m": 9.6
+    },
+    {
+      "model_key": "gpt-6-astra",
+      "input_price_per_1m": 8.0,
+      "output_price_per_1m": 40.0
+    },
+    {
+      "model_key": "gpt-6-sol",
+      "input_price_per_1m": 1.6,
+      "output_price_per_1m": 8.0
+    },
+    {
+      "model_key": "gpt-6.1-sol",
+      "input_price_per_1m": 1.6,
+      "output_price_per_1m": 8.0
+    },
+    {
+      "model_key": "claude-fable-5",
+      "input_price_per_1m": 9.0,
+      "output_price_per_1m": 45.0
+    },
+    {
+      "model_key": "claude-fable-5-1",
+      "input_price_per_1m": 9.0,
+      "output_price_per_1m": 45.0
+    },
+    {
+      "model_key": "claude-fable-5-2",
+      "input_price_per_1m": 7.2,
+      "output_price_per_1m": 36.0
+    },
+    {
+      "model_key": "claude-haiku-4-5-20251001",
+      "input_price_per_1m": 0.9,
+      "output_price_per_1m": 4.5
+    },
+    {
+      "model_key": "claude-haiku-5-5",
+      "input_price_per_1m": 0.09,
+      "output_price_per_1m": 0.45
+    },
+    {
+      "model_key": "claude-opus-4-5",
+      "input_price_per_1m": 1.8,
+      "output_price_per_1m": 9.0
+    },
+    {
+      "model_key": "claude-opus-4-6",
+      "input_price_per_1m": 4.5,
+      "output_price_per_1m": 22.5
+    },
+    {
+      "model_key": "claude-opus-4-7",
+      "input_price_per_1m": 4.5,
+      "output_price_per_1m": 22.5
+    },
+    {
+      "model_key": "claude-opus-4-8",
+      "input_price_per_1m": 4.5,
+      "output_price_per_1m": 22.5
+    },
+    {
+      "model_key": "claude-opus-5",
+      "input_price_per_1m": 4.5,
+      "output_price_per_1m": 22.5
+    },
+    {
+      "model_key": "claude-opus-5-5",
+      "input_price_per_1m": 3.6,
+      "output_price_per_1m": 18.0
+    },
+    {
+      "model_key": "claude-sonnet-4-6",
+      "input_price_per_1m": 2.7,
+      "output_price_per_1m": 13.5
+    },
+    {
+      "model_key": "claude-sonnet-5",
+      "input_price_per_1m": 1.8,
+      "output_price_per_1m": 9.0
+    }
   ]
 }

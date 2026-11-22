@@ -37,4 +37,5 @@ NORMAL_PDF_MAX_OUTPUT_TOKENS = 131072
 NORMAL_NUM_CTX = 65536
 
 APP_ENV = "production"
-CORS_ORIGINS = "*"
+# 同 Pod 经 HAProxy 同源转发；勿使用 "*"。引擎侧若仍硬编码需同步收紧。
+CORS_ORIGINS = ""

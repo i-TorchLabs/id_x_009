@@ -6,7 +6,8 @@ import { Alert, Button, FieldError, Input, Label, TextField } from "@heroui/reac
 import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
 import { AuthLogo } from "@/components/auth/AuthLogo";
 import { PasswordEye } from "@/components/auth/PasswordEye";
-import { AUTH_BASE, AUTH_COPY } from "@/components/auth/constants";
+import { AUTH_BASE } from "@/components/auth/constants";
+import { useI18n } from "@/context/LocaleContext";
 
 export interface LoginFormProps {
     email: string;
@@ -49,8 +50,10 @@ export default function LoginForm({
     onPasswordBlur,
     onSubmit,
 }: LoginFormProps) {
+    const { t } = useI18n();
+
     return (
-        <div className="w-full max-w-[400px] font-text">
+        <div className="auth-form-column font-text">
             <AuthLogo />
             <header className="mb-9 text-center">
                 <h1
@@ -63,14 +66,14 @@ export default function LoginForm({
                         lineHeight: 1.14,
                     }}
                 >
-                    {AUTH_COPY.loginTitle}
+                    {t("login.welcomeTitle")}
                 </h1>
                 <p className="mt-1.5 text-sm" style={{ color: "var(--fg-3)" }}>
-                    {AUTH_COPY.loginSubtitle}
+                    {t("login.userSubtitle")}
                 </p>
                 {registeredHint ? (
                     <p className="mt-3 text-sm" style={{ color: "var(--fg-2)" }} role="status">
-                        注册成功，请登录
+                        {t("login.registeredHint")}
                     </p>
                 ) : null}
             </header>
@@ -86,7 +89,7 @@ export default function LoginForm({
                         isInvalid={Boolean(emailError)}
                         validationBehavior="aria"
                     >
-                        <Label>邮箱</Label>
+                        <Label>{t("login.emailLabel")}</Label>
                         <Input
                             placeholder="you@example.com"
                             autoComplete="email"
@@ -107,10 +110,10 @@ export default function LoginForm({
                         isInvalid={Boolean(passwordError)}
                         validationBehavior="aria"
                     >
-                        <Label>密码</Label>
+                        <Label>{t("login.passwordLabel")}</Label>
                         <Input
                             className="pr-11"
-                            placeholder="至少 6 位"
+                            placeholder={t("login.passwordPlaceholder")}
                             autoComplete="current-password"
                             onFocus={onPasswordFocus}
                             onBlur={onPasswordBlur}
@@ -124,14 +127,14 @@ export default function LoginForm({
 
                 <div className="mb-6 flex items-center justify-between gap-3">
                     <AuthCheckbox name="remember" isSelected={remember} onChange={onRememberChange}>
-                        <span className="text-sm">记住我</span>
+                        <span className="text-sm">{t("login.rememberMe")}</span>
                     </AuthCheckbox>
                     <Link
                         href={`${AUTH_BASE}/forgot-password`}
                         className="text-sm no-underline hover:underline"
                         style={{ color: "var(--fg)", fontWeight: 500 }}
                     >
-                        忘记密码？
+                        {t("login.forgotPassword")}
                     </Link>
                 </div>
 
@@ -150,20 +153,20 @@ export default function LoginForm({
                     size="lg"
                     fullWidth
                     isDisabled={isSubmitting}
-                    className="rounded-full font-semibold"
+                    className="rounded-full font-semibold text-[17px] tracking-[-0.374px] min-h-11"
                 >
-                    {isSubmitting ? "登录中…" : "登录"}
+                    {isSubmitting ? t("login.signingIn") : t("login.logIn")}
                 </Button>
             </form>
 
             <p className="mt-8 text-center text-sm" style={{ color: "var(--fg-3)" }}>
-                没有账号？{" "}
+                {t("login.noAccountPrompt")}{" "}
                 <Link
                     href={`${AUTH_BASE}/register`}
                     className="no-underline hover:underline"
                     style={{ color: "var(--fg)", fontWeight: 600 }}
                 >
-                    注册
+                    {t("login.signUpLink")}
                 </Link>
             </p>
         </div>

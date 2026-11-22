@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import LeftPanel from "@/components/LeftPanel";
 import RegisterForm from "@/components/RegisterForm";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LocaleToggle } from "@/components/LocaleToggle";
 import {
     AUTH_BASE,
     EMAIL_REGEX,
@@ -17,11 +18,13 @@ import {
     PHONE_REGEX,
 } from "@/components/auth/constants";
 import { useTheme } from "@/context/ThemeContext";
+import { useI18n } from "@/context/LocaleContext";
 import { userGraphqlApi } from "@/api/graphql";
 
 export default function RegisterPage() {
     const router = useRouter();
     const { theme } = useTheme();
+    const { t } = useI18n();
 
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
@@ -44,7 +47,7 @@ export default function RegisterPage() {
         let ok = true;
         const trimmed = email.trim();
         if (!trimmed || !EMAIL_REGEX.test(trimmed)) {
-            setEmailError("请输入有效邮箱");
+            setEmailError(t("register.errorValidEmailRequired"));
             ok = false;
         } else {
             setEmailError("");
@@ -52,28 +55,28 @@ export default function RegisterPage() {
 
         const phoneTrim = phone.trim();
         if (phoneTrim && !PHONE_REGEX.test(phoneTrim)) {
-            setPhoneError("手机号须为 11 位数字");
+            setPhoneError(t("register.errorPhoneInvalid"));
             ok = false;
         } else {
             setPhoneError("");
         }
 
         if (!password || password.length < PASSWORD_MIN_LEN) {
-            setPasswordError(`密码至少 ${PASSWORD_MIN_LEN} 位`);
+            setPasswordError(t("register.errorPasswordMinLength", { min: PASSWORD_MIN_LEN }));
             ok = false;
         } else {
             setPasswordError("");
         }
 
         if (confirmPassword !== password) {
-            setConfirmError("两次输入的密码不一致");
+            setConfirmError(t("register.errorPasswordMismatch"));
             ok = false;
         } else {
             setConfirmError("");
         }
 
         if (!agreeTerms) {
-            setTermsError("请先同意服务条款");
+            setTermsError(t("register.errorTermsRequired"));
             ok = false;
         } else {
             setTermsError("");
@@ -99,10 +102,10 @@ export default function RegisterPage() {
             if (result.register.success) {
                 router.push(`${AUTH_BASE}/login?registered=true`);
             } else {
-                setErrorMsg(result.register.message || "注册失败");
+                setErrorMsg(result.register.message || t("register.errorRegisterFailed"));
             }
         } catch (err) {
-            setErrorMsg(err instanceof Error ? err.message : "网络错误，请稍后重试");
+            setErrorMsg(err instanceof Error ? err.message : t("common.networkError"));
         } finally {
             setIsSubmitting(false);
         }
@@ -110,7 +113,8 @@ export default function RegisterPage() {
 
     return (
         <div className="relative h-screen overflow-hidden">
-            <div className="absolute top-4 right-4 z-50 flex items-center gap-1">
+            <div className="absolute top-4 right-4 z-50 flex items-center gap-0">
+                <LocaleToggle />
                 <ThemeToggle />
             </div>
 

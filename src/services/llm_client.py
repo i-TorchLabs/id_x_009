@@ -7,8 +7,10 @@ GET /v1/models and by a controlled smoke test.
 """
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
+import socket
 import time
 from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence
@@ -33,6 +35,85 @@ def _redact(value: str) -> str:
     return value[:600]
 
 
+def _env_flag(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _is_blocked_ip(addr: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(addr)
+    except ValueError:
+        return False
+    return bool(
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_reserved
+        or ip.is_multicast
+        or ip.is_unspecified
+    )
+
+
+_BLOCKED_HOSTNAMES = {
+    "localhost",
+    "metadata",
+    "metadata.google.internal",
+    "kubernetes.default",
+    "kubernetes.default.svc",
+}
+
+
+def _assert_safe_base_url(base_url: str) -> None:
+    """拒绝非 HTTPS、回环/链路本地字面量 IP 与已知危险主机名，降低 SSRF 风险。
+
+    本地联调可设 ``ID009_LLM_ALLOW_LOCALHOST=1`` 放行 localhost/127.0.0.1。
+    默认不对普通域名做 DNS 解析（避免企业 DNS/代理把公网域名解析到内网时误杀）；
+    设 ``ID009_LLM_STRICT_SSRF=1`` 时启用解析后私网检测。
+    """
+    parsed = urlparse(base_url)
+    if not parsed.netloc:
+        raise LLMConfigurationError("LLM_BASE_URL 不是有效 URL")
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        raise LLMConfigurationError("LLM_BASE_URL 缺少主机名")
+
+    allow_local = _env_flag("ID009_LLM_ALLOW_LOCALHOST")
+    is_loopback_name = host in {"localhost", "127.0.0.1", "::1"}
+
+    if parsed.scheme != "https":
+        if not (allow_local and is_loopback_name and parsed.scheme == "http"):
+            raise LLMConfigurationError(
+                "LLM_BASE_URL 必须使用 HTTPS（本地开发请设 ID009_LLM_ALLOW_LOCALHOST=1）"
+            )
+
+    if allow_local and is_loopback_name:
+        return
+
+    if host in _BLOCKED_HOSTNAMES or host.endswith(".localhost"):
+        raise LLMConfigurationError("LLM_BASE_URL 不允许指向本地或元数据主机")
+
+    # 字面量 IP（含 IPv6）
+    try:
+        if _is_blocked_ip(host):
+            raise LLMConfigurationError("LLM_BASE_URL 不允许指向内网或回环地址")
+    except LLMConfigurationError:
+        raise
+    except ValueError:
+        pass
+
+    if not _env_flag("ID009_LLM_STRICT_SSRF"):
+        return
+
+    try:
+        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+    except socket.gaierror as exc:
+        raise LLMConfigurationError("LLM_BASE_URL 主机名无法解析") from exc
+    for info in infos:
+        sockaddr = info[4]
+        if sockaddr and _is_blocked_ip(str(sockaddr[0])):
+            raise LLMConfigurationError("LLM_BASE_URL 解析到内网或回环地址，已拒绝")
+
+
 @dataclass(frozen=True)
 class LLMConfig:
     base_url: str
@@ -42,11 +123,7 @@ class LLMConfig:
     token_parameter: str = "max_tokens"
 
     def __post_init__(self) -> None:
-        parsed = urlparse(self.base_url)
-        if parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1"}:
-            raise LLMConfigurationError("LLM_BASE_URL 必须使用 HTTPS（本地开发地址除外）")
-        if not parsed.netloc:
-            raise LLMConfigurationError("LLM_BASE_URL 不是有效 URL")
+        _assert_safe_base_url(self.base_url)
         if not self.api_key or not self.api_key.strip():
             raise LLMConfigurationError("未配置 ID009_LLM_API_KEY")
         if self.timeout_seconds <= 0:
@@ -73,6 +150,37 @@ class LLMConfig:
         return cls(
             base_url=base_url,
             api_key=api_key,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            token_parameter=token_parameter,
+        )
+
+    @classmethod
+    def from_endpoint(
+        cls,
+        *,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        fallback_env: bool = True,
+    ) -> "LLMConfig":
+        """Build config from per-model endpoint fields, optionally falling back to env."""
+        env = cls.from_env() if fallback_env else None
+        resolved_base = (base_url or "").strip().rstrip("/")
+        resolved_key = (api_key or "").strip()
+        if not resolved_base:
+            if env is None or not env.base_url:
+                raise LLMConfigurationError("未配置模型 Base-Url / ID009_LLM_BASE_URL")
+            resolved_base = env.base_url
+        if not resolved_key:
+            if env is None or not env.api_key:
+                raise LLMConfigurationError("未配置模型 API-Key / ID009_LLM_API_KEY")
+            resolved_key = env.api_key
+        timeout_seconds = env.timeout_seconds if env is not None else 120.0
+        max_retries = env.max_retries if env is not None else 0
+        token_parameter = env.token_parameter if env is not None else "max_tokens"
+        return cls(
+            base_url=resolved_base,
+            api_key=resolved_key,
             timeout_seconds=timeout_seconds,
             max_retries=max_retries,
             token_parameter=token_parameter,

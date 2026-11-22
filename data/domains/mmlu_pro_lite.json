@@ -1,0 +1,202 @@
+[
+  {
+    "sample_id": "r-01",
+    "domain": "reasoning",
+    "prompt": "What is the capital of France? Reply with only the city name.",
+    "expected_answer": "Paris",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-02",
+    "domain": "reasoning",
+    "prompt": "Compute 17 × 19. Reply with only the integer.",
+    "expected_answer": "323",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-03",
+    "domain": "reasoning",
+    "prompt": "Which gas is most abundant in Earth's atmosphere by volume? Reply with only the chemical formula or common name.",
+    "expected_answer": "N2",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-04",
+    "domain": "reasoning",
+    "prompt": "In Boolean algebra, what is NOT(TRUE AND FALSE)? Reply with only TRUE or FALSE.",
+    "expected_answer": "TRUE",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-05",
+    "domain": "reasoning",
+    "prompt": "A train travels 120 km in 1.5 hours at constant speed. What is its speed in km/h? Reply with only the number.",
+    "expected_answer": "80",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-06",
+    "domain": "reasoning",
+    "prompt": "Who wrote the novel '1984'? Reply with only the author full name.",
+    "expected_answer": "George Orwell",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-07",
+    "domain": "reasoning",
+    "prompt": "What is the derivative of x^2 with respect to x? Reply with only the expression.",
+    "expected_answer": "2x",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-08",
+    "domain": "reasoning",
+    "prompt": "In the OSI model, which layer number is the Transport layer? Reply with only the integer.",
+    "expected_answer": "4",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-09",
+    "domain": "reasoning",
+    "prompt": "What is the atomic number of carbon? Reply with only the integer.",
+    "expected_answer": "6",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-10",
+    "domain": "reasoning",
+    "prompt": "Solve for x: 2x + 5 = 17. Reply with only the integer.",
+    "expected_answer": "6",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-11",
+    "domain": "reasoning",
+    "prompt": "Which sorting algorithm has average-case time complexity O(n log n) and is commonly implemented as divide-and-conquer? Reply with only the algorithm name (one word).",
+    "expected_answer": "mergesort",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-12",
+    "domain": "reasoning",
+    "prompt": "In probability, if P(A)=0.3 and P(B)=0.5 and A,B are independent, what is P(A and B)? Reply with only the decimal.",
+    "expected_answer": "0.15",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-13",
+    "domain": "reasoning",
+    "prompt": "What is the SI unit of electric resistance? Reply with only the unit name.",
+    "expected_answer": "ohm",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-14",
+    "domain": "reasoning",
+    "prompt": "Convert 0.75 to a percentage. Reply with only the number including %.",
+    "expected_answer": "75%",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-15",
+    "domain": "reasoning",
+    "prompt": "In SQL, which keyword removes duplicate rows from a SELECT result? Reply with only the keyword.",
+    "expected_answer": "DISTINCT",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-16",
+    "domain": "reasoning",
+    "prompt": "What is the next prime after 29? Reply with only the integer.",
+    "expected_answer": "31",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-17",
+    "domain": "reasoning",
+    "prompt": "If all Bloops are Razzies and all Razzies are Lazzies, are all Bloops necessarily Lazzies? Reply with only YES or NO.",
+    "expected_answer": "YES",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-18",
+    "domain": "reasoning",
+    "prompt": "What year did World War II end in Europe (VE Day year)? Reply with only the four-digit year.",
+    "expected_answer": "1945",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-19",
+    "domain": "reasoning",
+    "prompt": "Binary 1010 equals what decimal number? Reply with only the integer.",
+    "expected_answer": "10",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "r-20",
+    "domain": "reasoning",
+    "prompt": "A rectangle has length 8 and width 5. What is its area? Reply with only the integer.",
+    "expected_answer": "40",
+    "metadata": {
+      "task": "mmlu-pro-lite",
+      "metric": "exact_match"
+    }
+  }
+]

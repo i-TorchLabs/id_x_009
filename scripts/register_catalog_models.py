@@ -40,7 +40,15 @@ def gateway_models(base_url: str, api_key: str) -> list[str]:
     return sorted(str(item["id"]) for item in payload.get("data", []) if item.get("id"))
 
 
-def register(api: str, token: str, catalog_path: Path, available: list[str]) -> list[dict[str, Any]]:
+def register(
+    api: str,
+    token: str,
+    catalog_path: Path,
+    available: list[str],
+    *,
+    base_url: str,
+    api_key: str,
+) -> list[dict[str, Any]]:
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     metadata = {str(item["id"]): item for item in catalog.get("models", [])}
     results: list[dict[str, Any]] = []
@@ -53,11 +61,23 @@ def register(api: str, token: str, catalog_path: Path, available: list[str]) -> 
             continue
         vendor = str(item.get("vendor", "Unknown"))
         series = str(item.get("series", model_id))
+        price = item.get("price") or {}
+        input_price = price.get("input_price_per_1m")
+        output_price = price.get("output_price_per_1m")
         query = """mutation { registerModel(input: {
           name: %s, vendor: %s, series: %s, version: "gateway",
+          baseUrl: %s, apiKey: %s, modelName: %s,
+          inputPricePer1m: %s, outputPricePer1m: %s,
           accessType: "api", backend: "api", contextLength: 131072
-        }) { success message model { id name } } }""" % (
-            json.dumps(model_id), json.dumps(vendor), json.dumps(series)
+        }) { success message model { id name modelName } } }""" % (
+            json.dumps(model_id),
+            json.dumps(vendor),
+            json.dumps(series),
+            json.dumps(base_url),
+            json.dumps(api_key),
+            json.dumps(model_id),
+            "null" if input_price is None else input_price,
+            "null" if output_price is None else output_price,
         )
         result = graphql(api, token, query)
         payload = result.get("data", {}).get("registerModel", {})
@@ -89,7 +109,14 @@ def main() -> int:
         raise SystemExit(f"Missing gateway key environment variable: {args.llm_key_env}")
     available = gateway_models(args.llm_base_url, llm_key)
     print(json.dumps({"accessible_model_count": len(available)}, ensure_ascii=False))
-    register(args.api, token, Path(args.catalog), available)
+    register(
+        args.api,
+        token,
+        Path(args.catalog),
+        available,
+        base_url=args.llm_base_url,
+        api_key=llm_key,
+    )
     return 0
 
 

@@ -186,9 +186,12 @@ body {
     background: var(--accent);
     color: var(--accent-fg);
     border-radius: var(--r-pill);
-    padding: 0.55rem 1.4rem;
+    padding: 0.7rem 1.5rem;
+    min-height: 44px;
+    font-size: 17px;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.374px;
+    line-height: 1.25;
     transition:
         opacity 0.2s ease,
         transform 0.1s ease;
@@ -257,4 +260,58 @@ code {
 
 [data-row]:hover {
     background-color: rgba(127, 127, 127, 0.07);
+}
+
+/* STANDARD-UI §8.3 全屏应用页内容柱 */
+.workspace-shell {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+}
+
+.workspace-main {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.workspace-column {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px 24px 48px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.workspace-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    padding: 64px 16px;
+    color: var(--fg-3);
+    font-size: 14px;
+    letter-spacing: -0.22px;
+    line-height: 1.43;
+}
+
+/* 认证右栏：轻微纵向呼吸，避免贴顶 */
+.auth-form-column {
+    width: 100%;
+    max-width: 400px;
+    animation: auth-rise 0.45s cubic-bezier(0.25, 0.4, 0.25, 1) both;
+}
+
+@keyframes auth-rise {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

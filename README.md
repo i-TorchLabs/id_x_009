@@ -18,9 +18,7 @@
 
 **Slogan**: 一站式大模型评测、评分图谱与性价比分析平台。
 
-**Description**: ID-009 是一个面向大语言模型（LLM）的全栈评测平台 Demo，覆盖模型注册、数据集管理、评测任务调度、六能力域评分、成本分析及评分-成本 Pareto 图谱可视化。平台采用 GraphQL API 驱动，前后端分离架构，支持多厂商模型（OpenAI / Anthropic / Google / DeepSeek / Alibaba / Meta / Moonshot / Zhipu / MiniMax / Mistral）的统一接入与横向对比，帮助团队快速完成模型选型与性价比决策。
-
-与同类项目相比，ID-009 的核心差异在于：将评测执行、结果聚合与可视化分析整合为闭环，内置 Pareto 前沿计算引擎，开箱即用的种子数据让首次部署即可呈现完整的评分图谱。
+**Description**: ID-009 是面向大语言模型（LLM）的全栈**真实评测**平台，覆盖模型注册、数据集管理、评测任务调度、FinanceBench/六域评分、按价表成本核算及评分-成本 Pareto 图谱。GraphQL API 驱动，前后端分离；默认经 ChinaRouter 网关调用真实模型（清单与单价见 User Guide / `data/pricing/`），不做虚拟打分。
 
 ## 2. 核心特性 (Features)
 
@@ -36,7 +34,7 @@
 2. **任务状态机与断点续跑** — 守护线程每秒推进进度并落库，服务重启后遗留任务可通过 `resumeTask` 重新接管，工程可靠性经过验证
 3. **六能力域加权聚合** — 预定义六大能力域及权重（推理 30% / 语言 20% / 对齐 15% / 长上下文 15% / 多模态 10% / 业务 10%），支持按域独立分析与综合评分
 4. **四容器 Pod 一键部署** — HAProxy + Next.js + Litestar + pgvector(PostgreSQL 18) 同 Pod；`./up.sh` 幂等启动
-5. **开箱即用种子数据** — 首次建库自动执行 `ops/init/*.sql`，评分图谱开箱即有演示数据
+5. **真实模型种子** — 首次建库写入价表中的网关模型与 FinQA 数据集（无虚拟评测结果）；图谱数据来自真实任务
 6. **黑白学术风格 UI** — 前端遵循学术刊物图表规范（Nature / Science 风格），厂商调色板高对比低饱和，Pareto 前沿以深邃暗琥珀色突出边界语义
 
 ## 4. 技术栈 (Tech Stack)
@@ -130,7 +128,7 @@ id_x_009/
 │   └── ops.md               # 部署说明文档
 ├── img/                     # 图片资源
 ├── ops/                     # 容器部署（内置 pgvector/pg18）
-│   ├── init/                # 首次建库 SQL（种子数据）
+│   ├── init/                # 首次建库 SQL（01 建表，02 种子含 models_info，06–11 数据集样本）
 │   ├── .env.example         # 容器部署环境变量模板
 │   ├── Dockerfile.service   # 后端服务镜像（多阶段）
 │   ├── compose.yaml         # podman-compose（与 up.sh 勿混用）

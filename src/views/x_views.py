@@ -2,21 +2,25 @@ import asyncio
 import hashlib
 import json
 import os
-import random
 import secrets
 import threading
+import time
+from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Deque, Dict, List, Optional, Tuple
 from urllib.parse import quote_plus
 
-from sqlalchemy import select
+import bcrypt
+
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
 
 from utils.log_util import get_request_id, logger
 from x_models.id_x_009.src.models.x_models import (
     Dataset,
+    DatasetSample,
     EvalResult,
     EvalSampleResult,
     EvalTask,
@@ -31,6 +35,7 @@ from x_models.id_x_009.src.schemas.x_schemas import (
     CreateTaskInput,
     CreateTaskResultType,
     DatasetType,
+    DatasetsPageType,
     DomainScoreType,
     EvalTaskType,
     ForgotPasswordInput,
@@ -39,6 +44,7 @@ from x_models.id_x_009.src.schemas.x_schemas import (
     HealthType,
     LoginInput,
     ModelType,
+    ModelsPageType,
     RegisterInput,
     RegisterModelInput,
     RegisterModelResultType,
@@ -48,6 +54,8 @@ from x_models.id_x_009.src.schemas.x_schemas import (
     ScorePointType,
     TaskActionResultType,
     TaskReportType,
+    TasksPageType,
+    UpdateModelInput,
     UserInfoType,
 )
 from x_models.id_x_009.src.services.evaluation_pipeline import (
@@ -55,12 +63,19 @@ from x_models.id_x_009.src.services.evaluation_pipeline import (
     aggregate_scores,
     evaluate_samples,
 )
-from x_models.id_x_009.src.services.llm_client import OpenAICompatibleLLMClient
+from x_models.id_x_009.src.services.llm_client import (
+    LLMConfig,
+    OpenAICompatibleLLMClient,
+)
 from x_models.id_x_009.src.services.financebench import (
     evaluate_financebench_samples,
     load_financebench_samples,
 )
-from x_models.id_x_009.src.services.pricing import calculate_cost, load_model_prices
+from x_models.id_x_009.src.services.pricing import (
+    calculate_cost_db,
+    cost_from_rates,
+    get_model_price_db,
+)
 
 
 
@@ -73,8 +88,40 @@ DOMAIN_SPECS: List[Tuple[str, str, float]] = [
     ("business", "业务专项", 0.10),
 ]
 
-_TICK_SECONDS = 1.0
 _REAL_EVAL_DOMAINS = {key for key, _label, _weight in DOMAIN_SPECS}
+
+
+def _eval_tag(task_uid: Optional[str] = None, task_id: Optional[int] = None) -> str:
+    """统一评测日志前缀，便于 `grep '[eval]'` / `tail -f info.log`。"""
+    parts = ["[eval]"]
+    if task_uid:
+        parts.append(f"uid={task_uid}")
+    if task_id is not None:
+        parts.append(f"id={task_id}")
+    return " ".join(parts)
+
+
+def _gen_task_uid() -> str:
+    """任务外部标识：``t-<6位随机数>``（含前导零）。"""
+    return f"t-{secrets.randbelow(1_000_000):06d}"
+
+
+async def _alloc_task_uid(session) -> str:
+    """生成库内唯一的任务标识，碰撞时重试。"""
+    for _ in range(32):
+        candidate = _gen_task_uid()
+        exists = await session.execute(
+            select(EvalTask.id).where(EvalTask.task_uid == candidate).limit(1)
+        )
+        if exists.scalar_one_or_none() is None:
+            return candidate
+    raise RuntimeError("无法分配唯一任务标识 t-<6位随机数>")
+
+
+def _progress_pct(index: int, total: int) -> int:
+    if total <= 0:
+        return 1
+    return max(1, min(99, int(index * 100 / total)))
 
 
 def _classify_eval_error(exc: Exception) -> str:
@@ -111,69 +158,100 @@ def _median(values: list[float]) -> float:
         return ordered[middle]
     return (ordered[middle - 1] + ordered[middle]) / 2
 
-_MODEL_PROFILES: Dict[str, Tuple[float, float]] = {
-    "gpt-5.2": (92.0, 5.50),
-    "gpt-5-mini": (84.0, 0.55),
-    "claude-opus-4.6": (91.0, 8.00),
-    "claude-sonnet-4.6": (88.0, 1.80),
-    "gemini-3.1-pro": (90.0, 2.60),
-    "deepseek-v3.2": (85.0, 0.14),
-    "deepseek-r1": (87.0, 0.42),
-    "qwen3-max": (86.0, 0.90),
-    "qwen3-235b-a22b": (83.0, 0.35),
-    "qwen3-32b": (76.0, 0.08),
-    "llama-4-405b": (80.0, 0.60),
-    "llama-4-70b": (74.0, 0.12),
-    "kimi-k2.5": (84.0, 0.45),
-    "glm-5": (82.0, 0.30),
-    "minimax-m2.5": (78.0, 0.10),
-    "mistral-large-3": (77.0, 0.50),
-    "gpt-5.2-pro": (96.0, 22.00),
-    "o3-pro": (94.0, 18.00),
-    "claude-opus-4.6-x": (93.0, 15.00),
-    "gemini-3.1-ultra": (92.0, 6.80),
-    "deepseek-v3.2-pro": (88.0, 1.20),
-    "qwen3-72b": (80.0, 0.55),
-    "llama-4-13b": (66.0, 0.04),
-    "kimi-k2.5-pro": (89.0, 2.40),
-    "glm-5-pro": (85.0, 0.65),
-    "minimax-m2.5-pro": (82.0, 0.42),
-    "mistral-large-3-pro": (81.0, 0.75),
-    "phi-5-mini": (48.0, 0.008),
-    "phi-5-nano": (38.0, 0.003),
-    "gemma-4-9b": (52.0, 0.012),
-    "gemma-4-2b": (32.0, 0.005),
-    "command-r-plus": (75.0, 0.18),
-    "yi-1.5-34b": (70.0, 0.06),
-    "internlm-3-8b": (58.0, 0.025),
-}
-
-_VENDOR_DEFAULT_PROFILE: Dict[str, Tuple[float, float]] = {
-    "OpenAI": (86.0, 2.00),
-    "Anthropic": (88.0, 3.00),
-    "Google": (85.0, 1.50),
-    "DeepSeek": (83.0, 0.25),
-    "Alibaba": (80.0, 0.40),
-    "Meta": (76.0, 0.30),
-    "Moonshot": (82.0, 0.50),
-    "Zhipu": (80.0, 0.35),
-    "MiniMax": (76.0, 0.15),
-    "Mistral": (75.0, 0.45),
-    "Microsoft": (60.0, 0.02),
-    "Cohere": (72.0, 0.15),
-    "01.AI": (68.0, 0.08),
-    "InternLM": (62.0, 0.04),
-}
+_MODULE_ROOT = Path(__file__).resolve().parents[2]
+_DEFAULT_FINQA_SAMPLES = _MODULE_ROOT / "data" / "finqa" / "finqa_test_100.json"
 
 
+_AUTH_WINDOW_SECONDS = 60
+_AUTH_MAX_ATTEMPTS = 10
+_auth_attempts: Dict[str, Deque[float]] = defaultdict(deque)
+_auth_lock = threading.Lock()
+
+
+def _hash_password_sync(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode(
+        "utf-8"
+    )
 
 
 async def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    return await asyncio.to_thread(_hash_password_sync, password)
+
+
+def _verify_password_sync(password: str, stored: str) -> bool:
+    raw = (stored or "").strip()
+    if not raw:
+        return False
+    # 兼容存量 SHA256（无盐）哈希，登录成功后会升级为 bcrypt
+    if len(raw) == 64 and all(c in "0123456789abcdef" for c in raw.lower()):
+        return hashlib.sha256(password.encode("utf-8")).hexdigest() == raw.lower()
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), raw.encode("utf-8"))
+    except (ValueError, TypeError):
+        return False
+
+
+async def verify_password(password: str, stored: str) -> bool:
+    return await asyncio.to_thread(_verify_password_sync, password, stored)
+
+
+def _is_legacy_sha256_hash(stored: str) -> bool:
+    raw = (stored or "").strip()
+    return len(raw) == 64 and all(c in "0123456789abcdef" for c in raw.lower())
 
 
 async def generate_token() -> str:
     return secrets.token_urlsafe(32)
+
+
+def _request_from_info(info) -> Optional[object]:
+    ctx = getattr(info, "context", None)
+    if isinstance(ctx, dict):
+        return ctx.get("request")
+    return getattr(ctx, "request", None)
+
+
+def _bearer_from_request(request) -> Optional[str]:
+    if request is None:
+        return None
+    headers = getattr(request, "headers", None) or {}
+    header = ""
+    try:
+        header = headers.get("authorization", "") or headers.get("Authorization", "")
+    except Exception:
+        header = ""
+    if isinstance(header, str) and header.lower().startswith("bearer "):
+        return header[7:].strip()
+    return None
+
+
+def _client_ip(request) -> str:
+    if request is None:
+        return "unknown"
+    headers = getattr(request, "headers", None) or {}
+    try:
+        forwarded = headers.get("x-forwarded-for") or headers.get("X-Forwarded-For") or ""
+    except Exception:
+        forwarded = ""
+    if forwarded:
+        return forwarded.split(",")[0].strip() or "unknown"
+    client = getattr(request, "client", None)
+    host = getattr(client, "host", None) if client is not None else None
+    return str(host or "unknown")
+
+
+def _auth_rate_limited(action: str, request, email: str = "") -> Optional[str]:
+    """简单进程内限速：同一 IP+邮箱 每分钟最多 N 次。"""
+    key = f"{action}:{_client_ip(request)}:{(email or '').strip().lower()}"
+    now = time.monotonic()
+    with _auth_lock:
+        bucket = _auth_attempts[key]
+        while bucket and now - bucket[0] > _AUTH_WINDOW_SECONDS:
+            bucket.popleft()
+        if len(bucket) >= _AUTH_MAX_ATTEMPTS:
+            return "尝试过于频繁，请稍后再试"
+        bucket.append(now)
+    return None
 
 
 async def verify_token(token: str) -> Optional[User]:
@@ -205,10 +283,44 @@ async def verify_token(token: str) -> Optional[User]:
         return None
 
 
+async def require_auth(info) -> User:
+    """GraphQL resolver 鉴权：要求有效 Bearer token。"""
+    token = _bearer_from_request(_request_from_info(info))
+    user = await verify_token(token or "")
+    if user is None or user.is_active is False:
+        raise Exception("未授权：请先登录")
+    return user
+
+
 
 
 def _iso(dt: Optional[datetime]) -> Optional[str]:
     return dt.isoformat() if dt is not None else None
+
+
+def _mask_api_key(api_key: Optional[str]) -> str:
+    raw = (api_key or "").strip()
+    if not raw:
+        return "（未设置，回退环境变量）"
+    if len(raw) <= 8:
+        return "*" * len(raw)
+    return f"{raw[:3]}••••{raw[-4:]}"
+
+
+def _api_model_name(model: Optional[Model]) -> str:
+    if model is None:
+        return ""
+    return (model.model_name or "").strip() or (model.name or "").strip()
+
+
+def _llm_config_for_model(model: Optional[Model]) -> LLMConfig:
+    if model is None:
+        return LLMConfig.from_env()
+    return LLMConfig.from_endpoint(
+        base_url=model.base_url,
+        api_key=model.api_key,
+        fallback_env=True,
+    )
 
 
 def _model_to_type(m: Model) -> ModelType:
@@ -218,6 +330,9 @@ def _model_to_type(m: Model) -> ModelType:
         vendor=m.vendor,
         series=m.series,
         version=m.version,
+        base_url=(m.base_url or "").strip() or "https://apihk.chinarouter.net/v1",
+        api_key_masked=_mask_api_key(m.api_key),
+        model_name=_api_model_name(m),
         access_type=m.access_type,
         backend=m.backend,
         params_b=m.params_b,
@@ -286,38 +401,116 @@ async def view_health() -> HealthType:
     return HealthType(status="ok", service="id_x_009")
 
 
+def _ilike_pattern(value: str) -> str:
+    """Escape LIKE wildcards then wrap with % for fuzzy match."""
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
+    return f"%{escaped}%"
+
+
+_DEFAULT_PAGE_SIZE = 16
+_MAX_PAGE_SIZE = 500
+
+
+def _normalize_page(page: Optional[int], page_size: Optional[int]) -> Tuple[int, int]:
+    p = max(1, int(page or 1))
+    ps = int(page_size if page_size is not None else _DEFAULT_PAGE_SIZE)
+    ps = min(max(1, ps), _MAX_PAGE_SIZE)
+    return p, ps
+
+
+async def _paginate(session, stmt, page: int, page_size: int):
+    """对已带 where/order 的 select 做 count + offset/limit。"""
+    count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
+    total = int((await session.execute(count_stmt)).scalar_one() or 0)
+    result = await session.execute(
+        stmt.offset((page - 1) * page_size).limit(page_size)
+    )
+    return list(result.scalars().all()), total
+
+
 async def view_models(
-    vendor: Optional[str] = None, access_type: Optional[str] = None
-) -> List[ModelType]:
+    vendor: Optional[str] = None,
+    access_type: Optional[str] = None,
+    name: Optional[str] = None,
+    series: Optional[str] = None,
+    model_name: Optional[str] = None,
+    q: Optional[str] = None,
+    page: Optional[int] = 1,
+    page_size: Optional[int] = _DEFAULT_PAGE_SIZE,
+) -> ModelsPageType:
+    """模型列表；名称/厂商/系列/Model-Name 支持模糊筛选，``q`` 为跨字段关键词。"""
+    page, page_size = _normalize_page(page, page_size)
     try:
         async with get_session()() as session:
             stmt = select(Model).order_by(Model.vendor, Model.series, Model.id)
-            if vendor:
-                stmt = stmt.where(Model.vendor == vendor)
             if access_type:
                 stmt = stmt.where(Model.access_type == access_type)
-            result = await session.execute(stmt)
-            return [_model_to_type(m) for m in result.scalars().all()]
+            name_q = (name or "").strip()
+            vendor_q = (vendor or "").strip()
+            series_q = (series or "").strip()
+            model_name_q = (model_name or "").strip()
+            keyword = (q or "").strip()
+            if name_q:
+                stmt = stmt.where(Model.name.ilike(_ilike_pattern(name_q)))
+            if vendor_q:
+                stmt = stmt.where(Model.vendor.ilike(_ilike_pattern(vendor_q)))
+            if series_q:
+                stmt = stmt.where(Model.series.ilike(_ilike_pattern(series_q)))
+            if model_name_q:
+                stmt = stmt.where(Model.model_name.ilike(_ilike_pattern(model_name_q)))
+            if keyword:
+                pat = _ilike_pattern(keyword)
+                stmt = stmt.where(
+                    Model.name.ilike(pat)
+                    | Model.vendor.ilike(pat)
+                    | Model.series.ilike(pat)
+                    | Model.version.ilike(pat)
+                    | Model.model_name.ilike(pat)
+                )
+            rows, total = await _paginate(session, stmt, page, page_size)
+            return ModelsPageType(
+                items=[_model_to_type(m) for m in rows],
+                total=total,
+                page=page,
+                page_size=page_size,
+            )
     except Exception as e:
         logger.error(f"{get_request_id()}获取模型列表失败: {e}", exc_info=True)
-        return []
+        return ModelsPageType(items=[], total=0, page=page, page_size=page_size)
 
 
-async def view_datasets() -> List[DatasetType]:
+async def view_datasets(
+    page: Optional[int] = 1,
+    page_size: Optional[int] = _DEFAULT_PAGE_SIZE,
+) -> DatasetsPageType:
+    page, page_size = _normalize_page(page, page_size)
     try:
         async with get_session()() as session:
-            result = await session.execute(
-                select(Dataset).order_by(Dataset.domain, Dataset.id)
+            stmt = select(Dataset).order_by(Dataset.domain, Dataset.id)
+            rows, total = await _paginate(session, stmt, page, page_size)
+            return DatasetsPageType(
+                items=[_dataset_to_type(d) for d in rows],
+                total=total,
+                page=page,
+                page_size=page_size,
             )
-            return [_dataset_to_type(d) for d in result.scalars().all()]
     except Exception as e:
         logger.error(f"{get_request_id()}获取数据集列表失败: {e}", exc_info=True)
-        return []
+        return DatasetsPageType(items=[], total=0, page=page, page_size=page_size)
 
 
 
 
-async def view_login(input: LoginInput) -> AuthResponseType:
+async def view_login(input: LoginInput, info=None) -> AuthResponseType:
+    request = _request_from_info(info) if info is not None else None
+    rate_error = _auth_rate_limited("login", request, input.email or "")
+    if rate_error:
+        return AuthResponseType(success=False, message=rate_error)
+    invalid_msg = "邮箱或密码错误"
     try:
         async with get_session()() as session:
             result = await session.execute(
@@ -326,14 +519,17 @@ async def view_login(input: LoginInput) -> AuthResponseType:
             user = result.scalar_one_or_none()
 
             if user is None:
-                return AuthResponseType(success=False, message="用户不存在")
+                return AuthResponseType(success=False, message=invalid_msg)
 
-            password_hash = await hash_password(input.password)
-            if user.password_hash != password_hash:
-                return AuthResponseType(success=False, message="密码错误")
+            if not await verify_password(input.password, user.password_hash):
+                return AuthResponseType(success=False, message=invalid_msg)
 
             if user.is_active is False:
                 return AuthResponseType(success=False, message="用户尚未激活")
+
+            # 存量 SHA256 哈希在成功登录后升级为 bcrypt
+            if _is_legacy_sha256_hash(user.password_hash):
+                user.password_hash = await hash_password(input.password)
 
             token = await generate_token()
             expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
@@ -356,16 +552,20 @@ async def view_login(input: LoginInput) -> AuthResponseType:
 
     except Exception as e:
         logger.error(f"{get_request_id()}登录失败: {e}", exc_info=True)
-        return AuthResponseType(success=False, message=f"登录失败: {str(e)}")
+        return AuthResponseType(success=False, message="登录失败，请稍后重试")
 
 
-async def view_register(input: RegisterInput) -> AuthResponseType:
+async def view_register(input: RegisterInput, info=None) -> AuthResponseType:
+    request = _request_from_info(info) if info is not None else None
+    rate_error = _auth_rate_limited("register", request, input.email or "")
+    if rate_error:
+        return AuthResponseType(success=False, message=rate_error)
     try:
         if input.password != input.confirm_password:
             return AuthResponseType(success=False, message="两次密码输入不一致")
 
-        if len(input.password) < 6:
-            return AuthResponseType(success=False, message="密码长度至少6位")
+        if len(input.password) < 8:
+            return AuthResponseType(success=False, message="密码长度至少8位")
 
         async with get_session()() as session:
             result = await session.execute(
@@ -401,10 +601,18 @@ async def view_register(input: RegisterInput) -> AuthResponseType:
 
     except Exception as e:
         logger.error(f"{get_request_id()}注册失败: {e}", exc_info=True)
-        return AuthResponseType(success=False, message=f"注册失败: {str(e)}")
+        return AuthResponseType(success=False, message="注册失败，请稍后重试")
 
 
-async def view_forgot_password(input: ForgotPasswordInput) -> ForgotPasswordResponseType:
+async def view_forgot_password(
+    input: ForgotPasswordInput, info=None
+) -> ForgotPasswordResponseType:
+    request = _request_from_info(info) if info is not None else None
+    rate_error = _auth_rate_limited("forgot", request, input.email or "")
+    if rate_error:
+        return ForgotPasswordResponseType(success=False, message=rate_error)
+    # 统一文案，避免邮箱枚举；绝不把 reset_token 返回给客户端
+    generic_msg = "如果邮箱存在，重置链接已发送"
     try:
         async with get_session()() as session:
             result = await session.execute(
@@ -413,10 +621,7 @@ async def view_forgot_password(input: ForgotPasswordInput) -> ForgotPasswordResp
             user = result.scalar_one_or_none()
 
             if user is None:
-                return ForgotPasswordResponseType(
-                    success=True,
-                    message="如果邮箱存在，重置链接已发送",
-                )
+                return ForgotPasswordResponseType(success=True, message=generic_msg)
 
             old_tokens_result = await session.execute(
                 select(PasswordResetToken).where(
@@ -436,35 +641,71 @@ async def view_forgot_password(input: ForgotPasswordInput) -> ForgotPasswordResp
                 )
             )
             await session.commit()
+            logger.info(
+                f"{get_request_id()}已生成密码重置令牌 user_id={user.id}（仅服务端保留）"
+            )
 
             return ForgotPasswordResponseType(
                 success=True,
-                message="重置令牌已生成，生产环境应发送邮件",
-                reset_token=reset_token,
+                message=generic_msg,
+                reset_token=None,
             )
 
     except Exception as e:
         logger.error(f"{get_request_id()}忘记密码处理失败: {e}", exc_info=True)
-        return ForgotPasswordResponseType(success=False, message=f"处理失败: {str(e)}")
+        return ForgotPasswordResponseType(success=False, message="处理失败，请稍后重试")
 
 
-async def view_logout() -> AuthResponseType:
+async def view_logout(info=None) -> AuthResponseType:
     try:
+        token = _bearer_from_request(_request_from_info(info) if info is not None else None)
+        if token:
+            async with get_session()() as session:
+                result = await session.execute(
+                    select(UserToken).where(UserToken.token == token)
+                )
+                user_token = result.scalar_one_or_none()
+                if user_token is not None:
+                    session.delete(user_token)
+                    await session.commit()
         return AuthResponseType(success=True, message="登出成功", token=None, user=None)
     except Exception as e:
         logger.error(f"{get_request_id()}登出失败: {e}", exc_info=True)
-        return AuthResponseType(success=False, message=f"登出失败: {str(e)}")
+        return AuthResponseType(success=False, message="登出失败，请稍后重试")
 
 
 
 
 async def view_register_model(input: RegisterModelInput) -> RegisterModelResultType:
     try:
+        name = (input.name or "").strip()
+        vendor = (input.vendor or "").strip()
+        series = (input.series or "").strip()
+        version = (input.version or "").strip()
+        base_url = (input.base_url or "").strip().rstrip("/")
+        api_key = (input.api_key or "").strip()
+        model_name = (input.model_name or "").strip() or name
+        if not name or not vendor or not series or not version:
+            return RegisterModelResultType(
+                success=False, message="请填写名称、厂商、系列、版本"
+            )
+        if not base_url:
+            return RegisterModelResultType(success=False, message="请填写 Base-Url")
+        if not api_key:
+            return RegisterModelResultType(success=False, message="请填写 API-Key")
+        if not model_name:
+            return RegisterModelResultType(success=False, message="请填写 Model-Name")
+        # 提前校验端点，避免注册无效配置
+        LLMConfig.from_endpoint(base_url=base_url, api_key=api_key, fallback_env=False)
+
+        if input.input_price_per_1m is not None and input.input_price_per_1m < 0:
+            return RegisterModelResultType(success=False, message="输入价不能为负")
+        if input.output_price_per_1m is not None and input.output_price_per_1m < 0:
+            return RegisterModelResultType(success=False, message="输出价不能为负")
+
         async with get_session()() as session:
             dup = await session.execute(
-                select(Model).where(
-                    Model.name == input.name, Model.version == input.version
-                )
+                select(Model).where(Model.name == name, Model.version == version)
             )
             if dup.scalar_one_or_none() is not None:
                 return RegisterModelResultType(
@@ -472,24 +713,46 @@ async def view_register_model(input: RegisterModelInput) -> RegisterModelResultT
                 )
 
             model = Model(
-                name=input.name,
-                vendor=input.vendor,
-                series=input.series,
-                version=input.version,
+                name=name,
+                vendor=vendor or "Unknown",
+                series=series or name,
+                version=version,
+                base_url=base_url,
+                api_key=api_key,
+                model_name=model_name,
                 access_type=input.access_type or "api",
-                backend=input.backend or "vllm",
+                backend=input.backend or "api",
                 params_b=input.params_b,
                 context_length=input.context_length,
+                input_price_per_1m=(
+                    float(input.input_price_per_1m)
+                    if input.input_price_per_1m is not None
+                    else 0.0
+                ),
+                output_price_per_1m=(
+                    float(input.output_price_per_1m)
+                    if input.output_price_per_1m is not None
+                    else 0.0
+                ),
             )
-            price = load_model_prices().get(model.name)
-            if price is not None:
-                model.input_price_per_1m = float(price.input_price_per_1m)
-                model.output_price_per_1m = float(price.output_price_per_1m)
+            # 未填单价时，按同 Model-Name / 名称的已有行回填
+            if model.input_price_per_1m == 0 or model.output_price_per_1m == 0:
+                price = await get_model_price_db(session, model_name)
+                if price is None:
+                    price = await get_model_price_db(session, name)
+                if price is not None:
+                    if model.input_price_per_1m == 0:
+                        model.input_price_per_1m = float(price.input_price_per_1m)
+                    if model.output_price_per_1m == 0:
+                        model.output_price_per_1m = float(price.output_price_per_1m)
             session.add(model)
             await session.commit()
             await session.refresh(model)
 
-            logger.info(f"{get_request_id()}注册模型成功: {model.name}@{model.version}")
+            logger.info(
+                f"{get_request_id()}注册模型成功: {model.name}@{model.version} "
+                f"model_name={model.model_name} base_url={model.base_url}"
+            )
             return RegisterModelResultType(
                 success=True,
                 message="模型注册成功",
@@ -501,6 +764,144 @@ async def view_register_model(input: RegisterModelInput) -> RegisterModelResultT
         return RegisterModelResultType(success=False, message=f"注册失败: {str(e)}")
 
 
+async def view_update_model(input: UpdateModelInput) -> RegisterModelResultType:
+    """更新已注册模型信息；api_key 为空时保留原密钥。"""
+    try:
+        name = (input.name or "").strip()
+        vendor = (input.vendor or "").strip()
+        series = (input.series or "").strip()
+        version = (input.version or "").strip()
+        base_url = (input.base_url or "").strip().rstrip("/")
+        api_key_raw = (input.api_key or "").strip() if input.api_key is not None else ""
+        model_name = (input.model_name or "").strip() or name
+        if not name or not vendor or not series or not version:
+            return RegisterModelResultType(
+                success=False, message="请填写名称、厂商、系列、版本"
+            )
+        if not base_url:
+            return RegisterModelResultType(success=False, message="请填写 Base-Url")
+        if not model_name:
+            return RegisterModelResultType(success=False, message="请填写 Model-Name")
+        if input.input_price_per_1m is not None and input.input_price_per_1m < 0:
+            return RegisterModelResultType(success=False, message="输入价不能为负")
+        if input.output_price_per_1m is not None and input.output_price_per_1m < 0:
+            return RegisterModelResultType(success=False, message="输出价不能为负")
+
+        async with get_session()() as session:
+            result = await session.execute(
+                select(Model).where(Model.id == input.model_id)
+            )
+            model = result.scalar_one_or_none()
+            if model is None:
+                return RegisterModelResultType(success=False, message="模型不存在")
+
+            dup = await session.execute(
+                select(Model).where(
+                    Model.name == name,
+                    Model.version == version,
+                    Model.id != input.model_id,
+                )
+            )
+            if dup.scalar_one_or_none() is not None:
+                return RegisterModelResultType(
+                    success=False, message="同名同版本模型已存在"
+                )
+
+            next_api_key = api_key_raw if api_key_raw else (model.api_key or "")
+            # 有密钥则校验端点；无密钥时允许回退环境变量
+            if next_api_key:
+                LLMConfig.from_endpoint(
+                    base_url=base_url, api_key=next_api_key, fallback_env=False
+                )
+            else:
+                LLMConfig.from_endpoint(
+                    base_url=base_url, api_key=None, fallback_env=True
+                )
+
+            model.name = name
+            model.vendor = vendor
+            model.series = series
+            model.version = version
+            model.base_url = base_url
+            model.api_key = next_api_key
+            model.model_name = model_name
+            model.access_type = input.access_type or model.access_type or "api"
+            model.backend = input.backend or model.backend or "api"
+            model.params_b = input.params_b
+            model.context_length = input.context_length
+            model.input_price_per_1m = input.input_price_per_1m
+            model.output_price_per_1m = input.output_price_per_1m
+            await session.commit()
+            await session.refresh(model)
+
+            logger.info(
+                f"{get_request_id()}更新模型成功: id={model.id} "
+                f"{model.name}@{model.version} model_name={model.model_name} "
+                f"base_url={model.base_url} api_key_updated={bool(api_key_raw)}"
+            )
+            return RegisterModelResultType(
+                success=True,
+                message="模型已更新",
+                model=_model_to_type(model),
+            )
+    except Exception as e:
+        logger.error(f"{get_request_id()}更新模型失败: {e}", exc_info=True)
+        return RegisterModelResultType(success=False, message=f"更新失败: {str(e)}")
+
+
+async def view_delete_model(model_id: int) -> TaskActionResultType:
+    """删除已注册模型，并级联清理其评测任务与结果。"""
+    try:
+        async with get_session()() as session:
+            result = await session.execute(select(Model).where(Model.id == model_id))
+            model = result.scalar_one_or_none()
+            if model is None:
+                return TaskActionResultType(success=False, message="模型不存在")
+
+            name = model.name
+            version = model.version
+            task_ids = list(
+                (
+                    await session.execute(
+                        select(EvalTask.id).where(EvalTask.model_id == model_id)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if task_ids:
+                await session.execute(
+                    delete(EvalSampleResult).where(
+                        EvalSampleResult.task_id.in_(task_ids)
+                    )
+                )
+                await session.execute(
+                    delete(EvalResult).where(EvalResult.task_id.in_(task_ids))
+                )
+                await session.execute(
+                    delete(EvalTask).where(EvalTask.id.in_(task_ids))
+                )
+            # 兜底：直接按 model_id 清残留明细
+            await session.execute(
+                delete(EvalSampleResult).where(EvalSampleResult.model_id == model_id)
+            )
+            await session.execute(
+                delete(EvalResult).where(EvalResult.model_id == model_id)
+            )
+            await session.delete(model)
+            await session.commit()
+            logger.info(
+                f"{get_request_id()}模型已删除: {name}@{version} id={model_id} "
+                f"cascaded_tasks={len(task_ids)}"
+            )
+            return TaskActionResultType(
+                success=True,
+                message=f"模型已删除（含 {len(task_ids)} 个关联任务）",
+                status="Deleted",
+            )
+    except Exception as e:
+        logger.error(f"{get_request_id()}删除模型失败: {e}", exc_info=True)
+        return TaskActionResultType(success=False, message=f"删除失败: {str(e)}")
 
 
 def _build_fingerprint(
@@ -513,7 +914,9 @@ def _build_fingerprint(
     payload = {
         "dataset": [d.snapshot for d in datasets],
         "model": f"{model.name}@{model.version}",
-        "engine": f"{backend}@0.6",
+        "model_name": _api_model_name(model),
+        "base_url": (model.base_url or "").strip(),
+        "engine": f"{backend or model.backend or 'api'}@0.6",
         "hyper": {"temperature": temperature, "max_tokens": max_tokens},
     }
     return json.dumps(payload, ensure_ascii=False)
@@ -539,7 +942,7 @@ async def view_create_task(input: CreateTaskInput) -> CreateTaskResultType:
             fingerprint = _build_fingerprint(
                 model, datasets, input.backend, input.temperature, input.max_tokens
             )
-            task_uid = f"t-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{secrets.token_hex(2)}"
+            task_uid = await _alloc_task_uid(session)
 
             task = EvalTask(
                 task_uid=task_uid,
@@ -555,8 +958,13 @@ async def view_create_task(input: CreateTaskInput) -> CreateTaskResultType:
             await session.commit()
             task_id = task.id
 
+        logger.info(
+            f"{get_request_id()}{_eval_tag(task_uid, task_id)} 任务已创建 | "
+            f"name={input.name!r} model={model.name}@{model.version} "
+            f"datasets={list(input.dataset_ids)} backend={input.backend or 'vllm'} "
+            f"status=Pending → 启动执行线程"
+        )
         _start_runner(task_id)
-        logger.info(f"{get_request_id()}创建评测任务: {task_uid} (id={task_id})")
 
         return CreateTaskResultType(
             success=True,
@@ -589,6 +997,7 @@ def _start_runner(task_id: int) -> None:
         daemon=True,
         name=f"eval-runner-{task_id}",
     )
+    logger.info(f"{_eval_tag(task_id=task_id)} 执行线程已启动 name=eval-runner-{task_id}")
     thread.start()
 
 
@@ -612,100 +1021,66 @@ async def _run_task_with_own_engine(task_id: int) -> None:
         await engine.dispose()
 
 
-def _profile_for(model: Model) -> Tuple[float, float]:
-    if model.name in _MODEL_PROFILES:
-        return _MODEL_PROFILES[model.name]
-    return _VENDOR_DEFAULT_PROFILE.get(model.vendor, (72.0, 0.80))
-
-
 async def _run_task(maker: async_sessionmaker, task_id: int) -> None:
-    if os.getenv("ID009_EVAL_MODE", "simulated").strip().lower() == "real":
-        try:
-            await _run_real_task(maker, task_id)
-        except Exception as exc:
-            logger.error(f"真实评测任务 {task_id} 执行异常: {exc}", exc_info=True)
-            async with maker() as session:
-                result = await session.execute(
-                    select(EvalTask).where(EvalTask.id == task_id)
+    mode = os.getenv("ID009_EVAL_MODE", "real").strip().lower() or "real"
+    tag = _eval_tag(task_id=task_id)
+    logger.info(f"{tag} 调度开始 | ID009_EVAL_MODE={mode!r}")
+    if mode != "real":
+        async with maker() as session:
+            result = await session.execute(
+                select(EvalTask).where(EvalTask.id == task_id)
+            )
+            task = result.scalar_one_or_none()
+            if task is not None:
+                task.status = "Failed"
+                task.error = (
+                    f"虚拟/模拟评测已禁用（ID009_EVAL_MODE={mode!r}）。"
+                    "请设置 ID009_EVAL_MODE=real 并配置网关与样本。"
                 )
-                task = result.scalar_one_or_none()
-                if task is not None:
-                    task.status = "Failed"
-                    task.error = str(exc)
-                    task.error_type = _classify_eval_error(exc)
-                    await session.commit()
+                task.error_type = "CONFIG_ERROR"
+                await session.commit()
+                logger.error(
+                    f"{_eval_tag(task.task_uid, task_id)} 任务终止 | "
+                    f"原因=CONFIG_ERROR mode={mode!r}（仅支持 real）"
+                )
         return
 
-    rng: Optional[random.Random] = None
-    model: Optional[Model] = None
-
-    while True:
-        await asyncio.sleep(_TICK_SECONDS)
-        try:
-            async with maker() as session:
-                result = await session.execute(
-                    select(EvalTask)
-                    .options(selectinload(EvalTask.model))
-                    .where(EvalTask.id == task_id)
-                )
-                task = result.scalar_one_or_none()
-                if task is None:
-                    return
-
-                if task.status == "Failed" or task.status == "Done":
-                    return
-
-                if task.status == "Paused":
-                    continue
-
-                if task.status == "Pending":
-                    task.status = "Running"
-                    task.progress = max(task.progress or 0, 1)
-                    await session.commit()
-                    continue
-
-                if rng is None:
-                    rng = random.Random(f"{task.task_uid}:{task.fingerprint}")
-                    model = task.model
-
-                step = rng.randint(6, 14)
-                task.progress = min(100, (task.progress or 0) + step)
-
-                if task.progress >= 100:
-                    task.status = "Done"
-                    eval_result = _generate_result(task, model, rng)
-                    session.add(eval_result)
-
+    try:
+        await _run_real_task(maker, task_id)
+    except Exception as exc:
+        error_type = _classify_eval_error(exc)
+        logger.error(
+            f"{tag} 执行异常 | error_type={error_type} error={exc}",
+            exc_info=True,
+        )
+        async with maker() as session:
+            result = await session.execute(
+                select(EvalTask).where(EvalTask.id == task_id)
+            )
+            task = result.scalar_one_or_none()
+            if task is not None:
+                task.status = "Failed"
+                task.error = str(exc)
+                task.error_type = error_type
                 await session.commit()
+                logger.error(
+                    f"{_eval_tag(task.task_uid, task_id)} 任务失败已落库 | "
+                    f"status=Failed error_type={error_type} progress={task.progress}"
+                )
 
-                if task.status == "Done":
-                    logger.info(f"评测任务完成: {task.task_uid}")
-                    return
 
-        except Exception as e:
-            logger.error(f"评测任务 {task_id} 执行异常: {e}", exc_info=True)
-            try:
-                async with maker() as session:
-                    result = await session.execute(
-                        select(EvalTask).where(EvalTask.id == task_id)
-                    )
-                    task = result.scalar_one_or_none()
-                    if task is not None:
-                        task.status = "Failed"
-                        task.error = str(e)
-                        task.error_type = _classify_eval_error(e)
-                        await session.commit()
-            except Exception:
-                pass
-            return
+def _resolve_eval_samples_file() -> Path:
+    sample_path = os.getenv("ID009_EVAL_SAMPLES_FILE", "").strip()
+    if sample_path:
+        return Path(sample_path)
+    evaluation_format = os.getenv("ID009_EVAL_FORMAT", "financebench").strip().lower()
+    if evaluation_format == "financebench" and _DEFAULT_FINQA_SAMPLES.is_file():
+        return _DEFAULT_FINQA_SAMPLES
+    raise RuntimeError("真实评测需要配置 ID009_EVAL_SAMPLES_FILE")
 
 
 def _load_real_eval_samples() -> list[EvalSample]:
-    sample_path = os.getenv("ID009_EVAL_SAMPLES_FILE", "").strip()
-    if not sample_path:
-        raise RuntimeError("真实评测需要配置 ID009_EVAL_SAMPLES_FILE")
-
-    path = Path(sample_path)
+    path = _resolve_eval_samples_file()
     if not path.is_file():
         raise RuntimeError(f"评测样本文件不存在: {path}")
 
@@ -736,12 +1111,83 @@ def _load_real_eval_samples() -> list[EvalSample]:
     return samples
 
 
-def _load_financebench_eval_samples():
-    sample_path = os.getenv("ID009_EVAL_SAMPLES_FILE", "").strip()
-    if not sample_path:
-        raise RuntimeError("FinanceBench 评测需要配置 ID009_EVAL_SAMPLES_FILE")
+_DOMAIN_LABEL_TO_KEY = {
+    "客观知识与推理": "reasoning",
+    "语言与生成": "language",
+    "对齐与安全": "alignment",
+    "长上下文": "longctx",
+    "多模态": "multimodal",
+    "业务专项": "business",
+}
+
+
+def _normalize_domain_key(raw: str) -> str:
+    value = (raw or "").strip()
+    if value in _REAL_EVAL_DOMAINS:
+        return value
+    return _DOMAIN_LABEL_TO_KEY.get(value, value)
+
+
+def _parse_task_dataset_ids(raw: Optional[str]) -> list[int]:
     try:
-        return load_financebench_samples(sample_path)
+        values = json.loads(raw or "[]")
+    except (TypeError, json.JSONDecodeError):
+        return []
+    out: list[int] = []
+    for item in values:
+        try:
+            out.append(int(item))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+async def _load_task_dataset_samples(
+    session, dataset_ids: list[int]
+) -> list[EvalSample]:
+    """从任务勾选的数据集加载样本（优先于全局 ID009_EVAL_FORMAT 文件）。"""
+    if not dataset_ids:
+        return []
+    result = await session.execute(
+        select(DatasetSample)
+        .where(DatasetSample.dataset_id.in_(dataset_ids))
+        .order_by(DatasetSample.dataset_id, DatasetSample.sort_order, DatasetSample.id)
+    )
+    rows = list(result.scalars().all())
+    samples: list[EvalSample] = []
+    for row in rows:
+        domain = _normalize_domain_key(row.domain)
+        if domain not in _REAL_EVAL_DOMAINS:
+            continue
+        samples.append(
+            EvalSample(
+                sample_id=str(row.sample_id),
+                domain=domain,
+                prompt=str(row.prompt or ""),
+                expected_answer=(
+                    str(row.expected_answer)
+                    if row.expected_answer is not None
+                    else None
+                ),
+            )
+        )
+    return samples
+
+
+def _domain_weights_for(domains: set[str]) -> dict[str, float]:
+    selected = {
+        key: weight for key, _label, weight in DOMAIN_SPECS if key in domains
+    }
+    total = sum(selected.values())
+    if total <= 0:
+        return selected
+    return {key: weight / total for key, weight in selected.items()}
+
+
+def _load_financebench_eval_samples():
+    path = _resolve_eval_samples_file()
+    try:
+        return load_financebench_samples(str(path))
     except (OSError, UnicodeDecodeError, ValueError, TypeError) as exc:
         raise RuntimeError(f"FinanceBench 样本文件无法读取: {type(exc).__name__}") from exc
 
@@ -753,19 +1199,42 @@ def _financebench_temperature(model_name: str) -> float:
     return 0.0
 
 
-def _real_eval_cost(evaluations) -> float:
+async def _token_cost(
+    session,
+    model_key: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    *,
+    model: Optional[Model] = None,
+) -> float:
+    """Prefer models_info row prices; optional env per-1K overrides."""
     try:
-        input_rate = float(os.getenv("ID009_LLM_INPUT_COST_PER_1K_TOKENS", ""))
-        output_rate = float(os.getenv("ID009_LLM_OUTPUT_COST_PER_1K_TOKENS", ""))
+        input_rate = float(os.getenv("ID009_LLM_INPUT_COST_PER_1K_TOKENS", "0") or "0")
+        output_rate = float(os.getenv("ID009_LLM_OUTPUT_COST_PER_1K_TOKENS", "0") or "0")
     except ValueError as exc:
         raise RuntimeError("LLM token pricing environment variables格式不正确") from exc
     if input_rate < 0 or output_rate < 0:
         raise RuntimeError("LLM token pricing cannot be negative")
-
-    prompt_tokens = sum(item.prompt_tokens or 0 for item in evaluations)
-    completion_tokens = sum(item.completion_tokens or 0 for item in evaluations)
-    if not evaluations or (prompt_tokens == 0 and completion_tokens == 0):
+    if prompt_tokens == 0 and completion_tokens == 0:
         raise RuntimeError("真实评测缺少 token usage，无法计算成本")
+    if input_rate == 0 and output_rate == 0:
+        if (
+            model is not None
+            and model.input_price_per_1m is not None
+            and model.output_price_per_1m is not None
+        ):
+            return cost_from_rates(
+                model.input_price_per_1m,
+                model.output_price_per_1m,
+                prompt_tokens,
+                completion_tokens,
+            )
+        try:
+            return await calculate_cost_db(
+                session, model_key, prompt_tokens, completion_tokens
+            )
+        except KeyError as exc:
+            raise RuntimeError(str(exc)) from exc
     return round(
         prompt_tokens / 1000.0 * input_rate
         + completion_tokens / 1000.0 * output_rate,
@@ -773,24 +1242,249 @@ def _real_eval_cost(evaluations) -> float:
     )
 
 
-def _real_eval_cost_from_records(records, model_key: str) -> float:
-    try:
-        input_rate = float(os.getenv("ID009_LLM_INPUT_COST_PER_1K_TOKENS", ""))
-        output_rate = float(os.getenv("ID009_LLM_OUTPUT_COST_PER_1K_TOKENS", ""))
-    except ValueError as exc:
-        raise RuntimeError("LLM token pricing environment variables格式不正确") from exc
-    if input_rate < 0 or output_rate < 0:
-        raise RuntimeError("LLM token pricing cannot be negative")
+async def _real_eval_cost(
+    session, evaluations, model_key: str, *, model: Optional[Model] = None
+) -> float:
+    prompt_tokens = sum(item.prompt_tokens or 0 for item in evaluations)
+    completion_tokens = sum(item.completion_tokens or 0 for item in evaluations)
+    if not evaluations:
+        raise RuntimeError("真实评测缺少 token usage，无法计算成本")
+    return await _token_cost(
+        session, model_key, prompt_tokens, completion_tokens, model=model
+    )
+
+
+async def _real_eval_cost_from_records(
+    session, records, model_key: str, *, model: Optional[Model] = None
+) -> float:
     prompt_tokens = sum(item["prompt_tokens"] or 0 for item in records)
     completion_tokens = sum(item["completion_tokens"] or 0 for item in records)
-    if not records or (prompt_tokens == 0 and completion_tokens == 0):
+    if not records:
         raise RuntimeError("FinanceBench 评测缺少 token usage，无法计算成本")
-    if input_rate == 0 and output_rate == 0:
-        return calculate_cost(model_key, prompt_tokens, completion_tokens)
-    return round(
-        prompt_tokens / 1000.0 * input_rate
-        + completion_tokens / 1000.0 * output_rate,
-        6,
+    return await _token_cost(
+        session, model_key, prompt_tokens, completion_tokens, model=model
+    )
+
+
+def _score_status_for_domain(score: Optional[float]) -> str:
+    if score is None:
+        return "unscored"
+    if score >= 100.0:
+        return "pass"
+    return "fail"
+
+
+async def _run_domain_eval(
+    *,
+    session,
+    task: EvalTask,
+    tag: str,
+    api_model: str,
+    llm_config: LLMConfig,
+    samples: list[EvalSample],
+    source: str,
+    bump_progress,
+) -> None:
+    """按能力域样本评测并写入 EvalResult / EvalSampleResult。"""
+    present = {sample.domain for sample in samples}
+    weights = _domain_weights_for(present)
+    logger.info(
+        f"{tag} 样本加载完成 | source={source} count={len(samples)} "
+        f"domains={sorted(present)} weights={weights} → 开始逐条调用模型"
+    )
+    if not samples:
+        raise RuntimeError("能力域评测样本列表不能为空")
+
+    async def _on_domain_sample(index: int, total_n: int, evaluation) -> None:
+        pct = await bump_progress(index, total_n)
+        logger.info(
+            f"{tag} 样本进度 {index}/{total_n} ({pct}%) | "
+            f"sample_id={evaluation.sample_id} domain={evaluation.domain} "
+            f"score={evaluation.score} latency_ms={evaluation.latency_ms} "
+            f"tokens={evaluation.total_tokens}"
+        )
+
+    async with OpenAICompatibleLLMClient(llm_config) as client:
+        logger.info(f"{tag} LLM 客户端已就绪 | 开始能力域评测循环")
+        evaluations = await evaluate_samples(
+            client,
+            model=api_model,
+            samples=samples,
+            temperature=0.0,
+            max_tokens=2048,
+            on_sample_done=_on_domain_sample,
+        )
+
+    logger.info(f"{tag} 样本评测结束 | total={len(evaluations)} → 聚合域分与成本")
+    for item in evaluations:
+        session.add(
+            EvalSampleResult(
+                task_id=task.id,
+                model_id=task.model_id,
+                sample_id=item.sample_id,
+                business_module=item.domain,
+                answer=item.answer,
+                score=float(item.score) if item.score is not None else 0.0,
+                score_status=_score_status_for_domain(item.score),
+                response_id=item.response_id,
+                returned_model=item.returned_model,
+                prompt_tokens=item.prompt_tokens,
+                completion_tokens=item.completion_tokens,
+                total_tokens=item.total_tokens,
+                latency_ms=item.latency_ms,
+            )
+        )
+
+    aggregate = aggregate_scores(evaluations, weights)
+    domain_scores = aggregate["domain_scores"]
+    if not domain_scores:
+        raise RuntimeError("能力域评测没有可评分样本（缺少 expected_answer 或全部未命中）")
+    composite = aggregate["composite_score"]
+    if composite is None:
+        raise RuntimeError("能力域评测无法计算综合分")
+
+    cost_per_task = await _real_eval_cost(
+        session, evaluations, api_model, model=task.model
+    )
+    latency_p50 = round(_median([item.latency_ms for item in evaluations]), 3)
+
+    task.progress = 100
+    task.status = "Done"
+    session.add(
+        EvalResult(
+            task_id=task.id,
+            model_id=task.model_id,
+            score_reasoning=float(domain_scores.get("reasoning", 0.0)),
+            score_language=float(domain_scores.get("language", 0.0)),
+            score_alignment=float(domain_scores.get("alignment", 0.0)),
+            score_longctx=float(domain_scores.get("longctx", 0.0)),
+            score_multimodal=float(domain_scores.get("multimodal", 0.0)),
+            score_business=float(domain_scores.get("business", 0.0)),
+            composite_score=float(composite),
+            cost_per_task=cost_per_task,
+            latency_p50=latency_p50,
+            throughput=None,
+        )
+    )
+    await session.commit()
+    logger.info(
+        f"{tag} 任务完成 Done | format=domain source={source} "
+        f"composite={composite} domains={domain_scores} "
+        f"cost_per_task={cost_per_task} latency_p50_ms={latency_p50}"
+    )
+
+
+async def _run_financebench_eval(
+    *,
+    session,
+    task: EvalTask,
+    tag: str,
+    api_model: str,
+    llm_config: LLMConfig,
+    bump_progress,
+) -> None:
+    finance_samples = _load_financebench_eval_samples()
+    total = len(finance_samples)
+    temperature = _financebench_temperature(api_model)
+    logger.info(
+        f"{tag} 样本加载完成 | source=financebench_file count={total} "
+        f"temperature={temperature} → 开始逐条调用模型"
+    )
+    if total == 0:
+        raise RuntimeError("FinanceBench 样本列表不能为空")
+
+    pass_count = 0
+    fail_count = 0
+    unparseable_count = 0
+
+    async def _on_fb_sample(index: int, total_n: int, record: dict) -> None:
+        nonlocal pass_count, fail_count, unparseable_count
+        status = str(record["score"].get("status", ""))
+        if status == "pass":
+            pass_count += 1
+        elif status == "unparseable":
+            unparseable_count += 1
+        else:
+            fail_count += 1
+        pct = await bump_progress(index, total_n)
+        logger.info(
+            f"{tag} 样本进度 {index}/{total_n} ({pct}%) | "
+            f"sample_id={record.get('sample_id')} "
+            f"module={record.get('business_module') or '—'} "
+            f"score_status={status} score={record['score'].get('score')} "
+            f"latency_ms={record.get('latency_ms')} "
+            f"tokens={record.get('total_tokens')} "
+            f"pass={pass_count} fail={fail_count} unparseable={unparseable_count}"
+        )
+
+    async with OpenAICompatibleLLMClient(llm_config) as client:
+        logger.info(f"{tag} LLM 客户端已就绪 | 开始 FinanceBench 评测循环")
+        sample_results = await evaluate_financebench_samples(
+            client,
+            model=api_model,
+            samples=finance_samples,
+            temperature=temperature,
+            on_sample_done=_on_fb_sample,
+        )
+
+    logger.info(
+        f"{tag} 样本评测结束 | total={len(sample_results)} "
+        f"pass={pass_count} fail={fail_count} unparseable={unparseable_count} "
+        f"→ 写入样本明细与汇总"
+    )
+    for item in sample_results:
+        score_info = item["score"]
+        session.add(
+            EvalSampleResult(
+                task_id=task.id,
+                model_id=task.model_id,
+                sample_id=item["sample_id"],
+                business_module=item["business_module"],
+                answer=item["answer"],
+                score=score_info["score"],
+                score_status=score_info["status"],
+                response_id=item["response_id"],
+                returned_model=item["returned_model"],
+                prompt_tokens=item["prompt_tokens"],
+                completion_tokens=item["completion_tokens"],
+                total_tokens=item["total_tokens"],
+                latency_ms=item["latency_ms"],
+            )
+        )
+    if not sample_results:
+        raise RuntimeError("FinanceBench 样本列表不能为空")
+    scores = [item["score"]["score"] for item in sample_results]
+    cost_per_task = await _real_eval_cost_from_records(
+        session, sample_results, api_model, model=task.model
+    )
+    composite = round(sum(scores) / len(scores), 2)
+    latency_p50 = round(_median([item["latency_ms"] for item in sample_results]), 3)
+    task.progress = 100
+    task.status = "Done"
+    # FinanceBench 仅覆盖业务专项；其余五域无对应样本，记 0
+    session.add(
+        EvalResult(
+            task_id=task.id,
+            model_id=task.model_id,
+            score_reasoning=0,
+            score_language=0,
+            score_alignment=0,
+            score_longctx=0,
+            score_multimodal=0,
+            score_business=composite,
+            composite_score=composite,
+            cost_per_task=cost_per_task,
+            latency_p50=latency_p50,
+            throughput=None,
+        )
+    )
+    await session.commit()
+    logger.info(
+        f"{tag} 任务完成 Done | format=financebench "
+        f"composite={composite} cost_per_task={cost_per_task} "
+        f"latency_p50_ms={latency_p50} "
+        f"pass={pass_count}/{len(sample_results)} "
+        f"fail={fail_count} unparseable={unparseable_count}"
     )
 
 
@@ -803,69 +1497,72 @@ async def _run_real_task(maker: async_sessionmaker, task_id: int) -> None:
         )
         task = result.scalar_one_or_none()
         if task is None:
+            logger.warning(f"{_eval_tag(task_id=task_id)} 任务不存在，跳过执行")
             return
         if task.status in {"Failed", "Done"}:
+            logger.info(
+                f"{_eval_tag(task.task_uid, task_id)} 跳过执行 | "
+                f"当前状态={task.status}（已终态）"
+            )
             return
+
+        tag = _eval_tag(task.task_uid, task_id)
+        display_name = task.model.name if task.model is not None else "?"
+        api_model = _api_model_name(task.model) or display_name
+        llm_config = _llm_config_for_model(task.model)
+        evaluation_format = os.getenv("ID009_EVAL_FORMAT", "financebench").strip().lower()
+        dataset_ids = _parse_task_dataset_ids(task.dataset_ids)
 
         task.status = "Running"
         task.progress = max(task.progress or 0, 1)
         await session.commit()
+        logger.info(
+            f"{tag} 进入 Running | model={display_name} api_model={api_model} "
+            f"base_url={llm_config.base_url} format={evaluation_format} "
+            f"dataset_ids={dataset_ids} progress=1%"
+        )
 
-        evaluation_format = os.getenv("ID009_EVAL_FORMAT", "six_domain").strip().lower()
-        if evaluation_format == "financebench":
-            finance_samples = _load_financebench_eval_samples()
-            async with OpenAICompatibleLLMClient() as client:
-                sample_results = await evaluate_financebench_samples(
-                    client,
-                    model=task.model.name,
-                    samples=finance_samples,
-                    temperature=_financebench_temperature(task.model.name),
-                )
-            for item in sample_results:
-                score_info = item["score"]
-                session.add(
-                    EvalSampleResult(
-                        task_id=task.id,
-                        model_id=task.model_id,
-                        sample_id=item["sample_id"],
-                        business_module=item["business_module"],
-                        answer=item["answer"],
-                        score=score_info["score"],
-                        score_status=score_info["status"],
-                        response_id=item["response_id"],
-                        returned_model=item["returned_model"],
-                        prompt_tokens=item["prompt_tokens"],
-                        completion_tokens=item["completion_tokens"],
-                        total_tokens=item["total_tokens"],
-                        latency_ms=item["latency_ms"],
-                    )
-                )
-            if not sample_results:
-                raise RuntimeError("FinanceBench 样本列表不能为空")
-            scores = [item["score"]["score"] for item in sample_results]
-            cost_per_task = _real_eval_cost_from_records(sample_results, task.model.name)
-            task.progress = 100
-            task.status = "Done"
-            session.add(
-                EvalResult(
-                    task_id=task.id,
-                    model_id=task.model_id,
-                    score_reasoning=0,
-                    score_language=0,
-                    score_alignment=0,
-                    score_longctx=0,
-                    score_multimodal=0,
-                    score_business=round(sum(scores) / len(scores), 2),
-                    composite_score=round(sum(scores) / len(scores), 2),
-                    cost_per_task=cost_per_task,
-                    latency_p50=round(
-                        _median([item["latency_ms"] for item in sample_results]), 3
-                    ),
-                    throughput=None,
-                )
+        async def _bump_progress(index: int, total: int) -> int:
+            # 用户可能在运行中删除任务；中止后续写入，避免 FK/幽灵更新
+            alive = await session.execute(
+                select(EvalTask.id).where(EvalTask.id == task_id)
             )
+            if alive.scalar_one_or_none() is None:
+                raise RuntimeError("任务已删除，评测已中止")
+            pct = _progress_pct(index, total)
+            task.progress = pct
             await session.commit()
-            logger.info(f"{get_request_id()}FinanceBench 评测任务完成: {task.task_uid}")
+            return pct
+
+        # 1) 优先：任务勾选的数据集 → dataset_samples（六域真实评分）
+        db_samples = await _load_task_dataset_samples(session, dataset_ids)
+        if db_samples:
+            await _run_domain_eval(
+                session=session,
+                task=task,
+                tag=tag,
+                api_model=api_model,
+                llm_config=llm_config,
+                samples=db_samples,
+                source=f"dataset_samples:{dataset_ids}",
+                bump_progress=_bump_progress,
+            )
+            return
+
+        # 2) 回退：无库内样本时，按 ID009_EVAL_FORMAT
+        if evaluation_format == "financebench":
+            logger.warning(
+                f"{tag} 任务 dataset_ids={dataset_ids} 无 dataset_samples，"
+                f"回退 FinanceBench 文件评测（仅业务专项有分）"
+            )
+            await _run_financebench_eval(
+                session=session,
+                task=task,
+                tag=tag,
+                api_model=api_model,
+                llm_config=llm_config,
+                bump_progress=_bump_progress,
+            )
             return
 
         samples = _load_real_eval_samples()
@@ -874,85 +1571,25 @@ async def _run_real_task(maker: async_sessionmaker, task_id: int) -> None:
                 "真实评测样本必须覆盖六个能力域: "
                 + ", ".join(sorted(_REAL_EVAL_DOMAINS))
             )
-
-        async with OpenAICompatibleLLMClient() as client:
-            evaluations = await evaluate_samples(
-                client,
-                model=task.model.name,
-                samples=samples,
-                temperature=0.0,
-                max_tokens=2048,
-            )
-
-        aggregate = aggregate_scores(
-            evaluations,
-            {key: weight for key, _label, weight in DOMAIN_SPECS},
+        await _run_domain_eval(
+            session=session,
+            task=task,
+            tag=tag,
+            api_model=api_model,
+            llm_config=llm_config,
+            samples=samples,
+            source="eval_samples_file",
+            bump_progress=_bump_progress,
         )
-        domain_scores = aggregate["domain_scores"]
-        if set(domain_scores) != _REAL_EVAL_DOMAINS:
-            raise RuntimeError("真实评测结果缺少可评分的能力域")
-        cost_per_task = _real_eval_cost(evaluations)
-
-        task.progress = 100
-        task.status = "Done"
-        session.add(
-            EvalResult(
-                task_id=task.id,
-                model_id=task.model_id,
-                score_reasoning=domain_scores["reasoning"],
-                score_language=domain_scores["language"],
-                score_alignment=domain_scores["alignment"],
-                score_longctx=domain_scores["longctx"],
-                score_multimodal=domain_scores["multimodal"],
-                score_business=domain_scores["business"],
-                composite_score=aggregate["composite_score"],
-                cost_per_task=cost_per_task,
-                latency_p50=round(
-                    _median([item.latency_ms for item in evaluations]),
-                    3,
-                ),
-                throughput=None,
-            )
-        )
-        await session.commit()
-        logger.info(f"{get_request_id()}真实评测任务完成: {task.task_uid}")
-
-
-def _generate_result(task: EvalTask, model: Optional[Model], rng: random.Random) -> EvalResult:
-    base_score, base_cost = _profile_for(model) if model is not None else (72.0, 0.80)
-
-    domain_scores: Dict[str, float] = {}
-    for key, _label, _weight in DOMAIN_SPECS:
-        jitter = rng.uniform(-4.0, 4.0)
-        score = max(20.0, min(99.0, base_score + jitter))
-        domain_scores[key] = round(score, 2)
-
-    composite = round(
-        sum(domain_scores[key] * weight for key, _label, weight in DOMAIN_SPECS), 2
-    )
-    cost = round(max(0.01, base_cost * rng.uniform(0.9, 1.1)), 4)
-    latency = round(rng.uniform(200.0, 1200.0), 1)
-    throughput = round(rng.uniform(30.0, 180.0), 1)
-
-    return EvalResult(
-        task_id=task.id,
-        model_id=task.model_id,
-        score_reasoning=domain_scores["reasoning"],
-        score_language=domain_scores["language"],
-        score_alignment=domain_scores["alignment"],
-        score_longctx=domain_scores["longctx"],
-        score_multimodal=domain_scores["multimodal"],
-        score_business=domain_scores["business"],
-        composite_score=composite,
-        cost_per_task=cost,
-        latency_p50=latency,
-        throughput=throughput,
-    )
 
 
 
-
-async def view_tasks(status: Optional[str] = None) -> List[EvalTaskType]:
+async def view_tasks(
+    status: Optional[str] = None,
+    page: Optional[int] = 1,
+    page_size: Optional[int] = _DEFAULT_PAGE_SIZE,
+) -> TasksPageType:
+    page, page_size = _normalize_page(page, page_size)
     try:
         async with get_session()() as session:
             stmt = (
@@ -962,11 +1599,16 @@ async def view_tasks(status: Optional[str] = None) -> List[EvalTaskType]:
             )
             if status:
                 stmt = stmt.where(EvalTask.status == status)
-            result = await session.execute(stmt)
-            return [_task_to_type(t) for t in result.scalars().all()]
+            rows, total = await _paginate(session, stmt, page, page_size)
+            return TasksPageType(
+                items=[_task_to_type(t) for t in rows],
+                total=total,
+                page=page,
+                page_size=page_size,
+            )
     except Exception as e:
         logger.error(f"{get_request_id()}获取任务列表失败: {e}", exc_info=True)
-        return []
+        return TasksPageType(items=[], total=0, page=page, page_size=page_size)
 
 
 async def view_task_detail(task_uid: str) -> Optional[EvalTaskType]:
@@ -1004,6 +1646,10 @@ async def view_pause_task(task_uid: str) -> TaskActionResultType:
 
             task.status = "Paused"
             await session.commit()
+            logger.info(
+                f"{get_request_id()}{_eval_tag(task.task_uid, task.id)} 任务已暂停 | "
+                f"progress={task.progress}%"
+            )
             return TaskActionResultType(
                 success=True, message="任务已暂停，可断点续跑", status="Paused"
             )
@@ -1024,6 +1670,10 @@ async def view_resume_task(task_uid: str) -> TaskActionResultType:
             if task.status == "Paused":
                 task.status = "Running"
                 await session.commit()
+                logger.info(
+                    f"{get_request_id()}{_eval_tag(task.task_uid, task.id)} "
+                    f"从断点恢复 | progress={task.progress}%"
+                )
                 return TaskActionResultType(
                     success=True, message="任务已从断点恢复", status="Running"
                 )
@@ -1033,11 +1683,19 @@ async def view_resume_task(task_uid: str) -> TaskActionResultType:
                 task.error = None
                 task.error_type = None
                 await session.commit()
+                logger.info(
+                    f"{get_request_id()}{_eval_tag(task.task_uid, task.id)} "
+                    f"失败任务重新排队 | status=Pending"
+                )
                 _start_runner(task.id)
                 return TaskActionResultType(
                     success=True, message="任务已重新排队", status="Pending"
                 )
             if task.status == "Pending":
+                logger.info(
+                    f"{get_request_id()}{_eval_tag(task.task_uid, task.id)} "
+                    f"Pending 任务重新接管执行器"
+                )
                 _start_runner(task.id)
                 return TaskActionResultType(
                     success=True, message="任务执行器已接管", status="Pending"
@@ -1050,6 +1708,39 @@ async def view_resume_task(task_uid: str) -> TaskActionResultType:
     except Exception as e:
         logger.error(f"{get_request_id()}恢复任务失败: {e}", exc_info=True)
         return TaskActionResultType(success=False, message=f"恢复失败: {str(e)}")
+
+
+async def view_delete_task(task_uid: str) -> TaskActionResultType:
+    """删除评测任务及其关联结果（eval_results / eval_sample_results）。"""
+    try:
+        async with get_session()() as session:
+            result = await session.execute(
+                select(EvalTask).where(EvalTask.task_uid == task_uid)
+            )
+            task = result.scalar_one_or_none()
+            if task is None:
+                return TaskActionResultType(success=False, message="任务不存在")
+
+            task_id = task.id
+            prev_status = task.status
+            await session.execute(
+                delete(EvalSampleResult).where(EvalSampleResult.task_id == task_id)
+            )
+            await session.execute(
+                delete(EvalResult).where(EvalResult.task_id == task_id)
+            )
+            await session.delete(task)
+            await session.commit()
+            logger.info(
+                f"{get_request_id()}{_eval_tag(task_uid, task_id)} 任务已删除 | "
+                f"prev_status={prev_status}"
+            )
+            return TaskActionResultType(
+                success=True, message="任务已删除", status="Deleted"
+            )
+    except Exception as e:
+        logger.error(f"{get_request_id()}删除任务失败: {e}", exc_info=True)
+        return TaskActionResultType(success=False, message=f"删除失败: {str(e)}")
 
 
 

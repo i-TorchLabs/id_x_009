@@ -2,6 +2,7 @@
 
 import React from "react";
 import { AnimatedCharacters } from "./AnimatedCharacters";
+import { useI18n } from "@/context/LocaleContext";
 
 interface LeftPanelProps {
   isTyping: boolean;
@@ -18,6 +19,7 @@ export default function LeftPanel({
   passwordLength,
   isDark = false,
 }: LeftPanelProps) {
+  const { t } = useI18n();
   const overlayBg = isDark
     ? "rgba(28, 28, 30, 0.55)"
     : "rgba(212, 212, 218, 0.42)";
@@ -82,16 +84,15 @@ export default function LeftPanel({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/favicon.ico"
-          alt="评测平台 logo"
+          alt={`${t("common.productName")} logo`}
           className="w-7 h-7"
         />
         {/* 主题适配：浅色模式为黑色，深色模式保持白色以保证可读性 */}
         <span
-          className={`text-base font-semibold ${
-            isDark ? "text-white" : "text-black"
-          }`}
+          className="font-display text-base font-semibold tracking-[-0.2px]"
+          style={{ color: isDark ? "#ffffff" : "#1d1d1f" }}
         >
-          评测平台
+          {t("common.productName")}
         </span>
       </div>
 
@@ -105,19 +106,19 @@ export default function LeftPanel({
         />
       </div>
 
-      {/* Footer Links */}
+      {/* Footer Links · STANDARD-UI §8.4.1 */}
       <div
-        className="absolute left-2 bottom-2 flex gap-7 text-[13px] z-10"
+        className="absolute left-2 bottom-2 z-10 flex gap-7 font-text text-[13px]"
         style={{ color: linkColor }}
       >
-        <a href="#" className="hover:transition-colors duration-200" style={{ color: linkColor }}>
-          Privacy Policy
+        <a href="#" className="transition-opacity duration-200 hover:opacity-80" style={{ color: linkColor }}>
+          {t("common.privacyPolicy")}
         </a>
-        <a href="#" className="hover:transition-colors duration-200" style={{ color: linkColor }}>
-          Terms of Service
+        <a href="#" className="transition-opacity duration-200 hover:opacity-80" style={{ color: linkColor }}>
+          {t("common.terms")}
         </a>
-        <a href="#" className="hover:transition-colors duration-200" style={{ color: linkColor }}>
-          Contact
+        <a href="#" className="transition-opacity duration-200 hover:opacity-80" style={{ color: linkColor }}>
+          {t("common.contact")}
         </a>
       </div>
     </div>

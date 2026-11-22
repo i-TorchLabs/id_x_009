@@ -39,10 +39,47 @@ def _normalize_answer(value: str) -> str:
     return " ".join(value.strip().casefold().split())
 
 
+def _strip_edge_punct(value: str) -> str:
+    return value.strip(" \t\r\n.,;:!?\"'`）】》〉")
+
+
 def score_exact_match(answer: str, expected_answer: Optional[str]) -> Optional[float]:
+    """Exact-match with light normalization; allows short gold as a phrase in the answer."""
     if expected_answer is None:
         return None
-    return 100.0 if _normalize_answer(answer) == _normalize_answer(expected_answer) else 0.0
+    expected = _normalize_answer(expected_answer)
+    got = _normalize_answer(answer)
+    if not expected:
+        return None
+    if got == expected or _strip_edge_punct(got) == expected:
+        return 100.0
+    # Models often wrap short answers ("Paris" → "The capital is Paris.")
+    # Strip edge punctuation so "paris." still matches gold "paris".
+    soft = _strip_edge_punct(got)
+    padded = f" {soft} "
+    if (
+        f" {expected} " in padded
+        or soft.endswith(expected)
+        or soft.startswith(expected)
+        or got.endswith(expected)
+        or got.startswith(expected)
+    ):
+        return 100.0
+    # Numeric / percent gold: accept if the expected token appears among extracted numbers
+    if expected.replace("%", "").replace(".", "", 1).replace("-", "", 1).isdigit() or "%" in expected:
+        from .financebench import extract_numeric_answers
+
+        try:
+            target = float(expected.replace("%", "").replace(",", ""))
+        except ValueError:
+            return 0.0
+        for candidate in extract_numeric_answers(answer):
+            if abs(candidate - target) <= max(1e-6, abs(target) * 1e-4):
+                return 100.0
+            # percent-style gold "14%" vs model "14"
+            if "%" in expected and abs(candidate - target) <= 0.05:
+                return 100.0
+    return 0.0
 
 
 def _sample_messages(sample: EvalSample) -> list[Mapping[str, Any]]:
@@ -56,9 +93,15 @@ async def evaluate_samples(
     samples: Sequence[EvalSample],
     temperature: float = 0.0,
     max_tokens: int = 2048,
+    on_sample_done: Any = None,
 ) -> list[SampleEvaluation]:
+    """Evaluate samples sequentially.
+
+    ``on_sample_done`` 可选：``async (index, total, evaluation) -> None``。
+    """
     evaluations: list[SampleEvaluation] = []
-    for sample in samples:
+    total = len(samples)
+    for index, sample in enumerate(samples, start=1):
         if not sample.sample_id.strip():
             raise ValueError("sample_id 不能为空")
         if not sample.domain.strip():
@@ -72,22 +115,23 @@ async def evaluate_samples(
             temperature=temperature,
             max_tokens=max_tokens,
         )
-        evaluations.append(
-            SampleEvaluation(
-                sample_id=sample.sample_id,
-                domain=sample.domain,
-                answer=result.answer,
-                score=score_exact_match(result.answer, sample.expected_answer),
-                requested_model=result.requested_model,
-                returned_model=result.returned_model,
-                response_id=result.response_id,
-                finish_reason=result.finish_reason,
-                prompt_tokens=result.prompt_tokens,
-                completion_tokens=result.completion_tokens,
-                total_tokens=result.total_tokens,
-                latency_ms=result.latency_ms,
-            )
+        evaluation = SampleEvaluation(
+            sample_id=sample.sample_id,
+            domain=sample.domain,
+            answer=result.answer,
+            score=score_exact_match(result.answer, sample.expected_answer),
+            requested_model=result.requested_model,
+            returned_model=result.returned_model,
+            response_id=result.response_id,
+            finish_reason=result.finish_reason,
+            prompt_tokens=result.prompt_tokens,
+            completion_tokens=result.completion_tokens,
+            total_tokens=result.total_tokens,
+            latency_ms=result.latency_ms,
         )
+        evaluations.append(evaluation)
+        if on_sample_done is not None:
+            await on_sample_done(index, total, evaluation)
     return evaluations
 
 

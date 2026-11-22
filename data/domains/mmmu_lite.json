@@ -1,0 +1,102 @@
+[
+  {
+    "sample_id": "m-01",
+    "domain": "multimodal",
+    "prompt": "Image description: a traffic light shows a green signal above a crosswalk. May pedestrians start crossing? Reply with only YES or NO.",
+    "expected_answer": "YES",
+    "metadata": {
+      "task": "mmmu-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "m-02",
+    "domain": "multimodal",
+    "prompt": "Image description: a clock face with hour hand on 3 and minute hand on 12. What time is shown? Reply as H:MM.",
+    "expected_answer": "3:00",
+    "metadata": {
+      "task": "mmmu-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "m-03",
+    "domain": "multimodal",
+    "prompt": "Chart description: bar A=10, bar B=25, bar C=15. Which bar is tallest? Reply with only A, B, or C.",
+    "expected_answer": "B",
+    "metadata": {
+      "task": "mmmu-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "m-04",
+    "domain": "multimodal",
+    "prompt": "Image description: a red circle left of a blue square. Which shape is on the left? Reply with only the color and shape.",
+    "expected_answer": "red circle",
+    "metadata": {
+      "task": "mmmu-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "m-05",
+    "domain": "multimodal",
+    "prompt": "Table image OCR text: Price of apple=2, banana=3, orange=4. What is the price of banana? Reply with only the number.",
+    "expected_answer": "3",
+    "metadata": {
+      "task": "mmmu-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "m-06",
+    "domain": "multimodal",
+    "prompt": "Map description: City X is north of City Y. Is City X south of City Y? Reply with only YES or NO.",
+    "expected_answer": "NO",
+    "metadata": {
+      "task": "mmmu-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "m-07",
+    "domain": "multimodal",
+    "prompt": "Photo description: a cat sits on a wooden chair indoors. What animal is shown? Reply with only one word.",
+    "expected_answer": "cat",
+    "metadata": {
+      "task": "mmmu-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "m-08",
+    "domain": "multimodal",
+    "prompt": "Diagram description: flowchart Start → Process → End. How many boxes are there? Reply with only the integer.",
+    "expected_answer": "3",
+    "metadata": {
+      "task": "mmmu-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "m-09",
+    "domain": "multimodal",
+    "prompt": "UI screenshot text: Submit button is disabled and labeled 'Save'. What is the button label? Reply with only the label text.",
+    "expected_answer": "Save",
+    "metadata": {
+      "task": "mmmu-lite",
+      "metric": "exact_match"
+    }
+  },
+  {
+    "sample_id": "m-10",
+    "domain": "multimodal",
+    "prompt": "Scatterplot description: points cluster around a rising diagonal. Is the correlation positive? Reply with only YES or NO.",
+    "expected_answer": "YES",
+    "metadata": {
+      "task": "mmmu-lite",
+      "metric": "exact_match"
+    }
+  }
+]

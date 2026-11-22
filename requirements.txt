@@ -11,3 +11,4 @@ strawberry-graphql
 psycopg2
 openpyxl
 pandas
+bcrypt>=4.0.0

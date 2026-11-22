@@ -54,7 +54,8 @@ class ForgotPasswordResponseType:
     success: bool = strawberry.field(description="是否成功")
     message: str = strawberry.field(description="消息")
     reset_token: Optional[str] = strawberry.field(
-        default=None, description="重置令牌（仅用于演示，生产环境应发送邮件）"
+        default=None,
+        description="已废弃：客户端不再返回重置令牌，保留字段仅为 API 兼容",
     )
 
 
@@ -67,6 +68,9 @@ class ModelType:
     vendor: str = strawberry.field(description="厂商")
     series: str = strawberry.field(description="模型系列")
     version: str = strawberry.field(description="版本")
+    base_url: str = strawberry.field(description="OpenAI 兼容网关 Base URL")
+    api_key_masked: str = strawberry.field(description="API Key 脱敏展示")
+    model_name: str = strawberry.field(description="上游调用使用的 Model-Name")
     access_type: str = strawberry.field(description="接入方式：selfhost/api/opensource")
     backend: str = strawberry.field(description="推理后端：vllm/trtllm/tgi/api")
     params_b: Optional[float] = strawberry.field(
@@ -75,8 +79,12 @@ class ModelType:
     context_length: Optional[int] = strawberry.field(
         default=None, description="上下文长度（tokens）"
     )
-    input_price_per_1m: Optional[float] = strawberry.field(default=None, description="输入价格（USD/1M tokens）")
-    output_price_per_1m: Optional[float] = strawberry.field(default=None, description="输出价格（USD/1M tokens）")
+    input_price_per_1m: Optional[float] = strawberry.field(
+        default=None, description="输入价格（USD/1M tokens）"
+    )
+    output_price_per_1m: Optional[float] = strawberry.field(
+        default=None, description="输出价格（USD/1M tokens）"
+    )
     created_at: Optional[str] = strawberry.field(default=None, description="注册时间")
 
 
@@ -86,11 +94,51 @@ class RegisterModelInput:
     vendor: str = strawberry.field(description="厂商")
     series: str = strawberry.field(description="模型系列")
     version: str = strawberry.field(description="版本")
+    base_url: str = strawberry.field(description="OpenAI 兼容网关 Base URL")
+    api_key: str = strawberry.field(description="调用网关的 API Key")
+    model_name: str = strawberry.field(description="上游 Chat Completions 的 model 字段")
+    input_price_per_1m: Optional[float] = strawberry.field(
+        default=None, description="输入价格（USD/1M tokens）"
+    )
+    output_price_per_1m: Optional[float] = strawberry.field(
+        default=None, description="输出价格（USD/1M tokens）"
+    )
     access_type: str = strawberry.field(
         default="api", description="接入方式：selfhost/api/opensource"
     )
     backend: str = strawberry.field(
-        default="vllm", description="推理后端：vllm/trtllm/tgi/api"
+        default="api", description="推理后端：vllm/trtllm/tgi/api"
+    )
+    params_b: Optional[float] = strawberry.field(default=None, description="参数量（B）")
+    context_length: Optional[int] = strawberry.field(
+        default=None, description="上下文长度（tokens）"
+    )
+
+
+@strawberry.input
+class UpdateModelInput:
+    model_id: int = strawberry.field(description="待更新的模型 ID")
+    name: str = strawberry.field(description="模型名称")
+    vendor: str = strawberry.field(description="厂商")
+    series: str = strawberry.field(description="模型系列")
+    version: str = strawberry.field(description="版本")
+    base_url: str = strawberry.field(description="OpenAI 兼容网关 Base URL")
+    api_key: Optional[str] = strawberry.field(
+        default=None,
+        description="调用网关的 API Key；留空表示不修改现有密钥",
+    )
+    model_name: str = strawberry.field(description="上游 Chat Completions 的 model 字段")
+    input_price_per_1m: Optional[float] = strawberry.field(
+        default=None, description="输入价格（USD/1M tokens）"
+    )
+    output_price_per_1m: Optional[float] = strawberry.field(
+        default=None, description="输出价格（USD/1M tokens）"
+    )
+    access_type: str = strawberry.field(
+        default="api", description="接入方式：selfhost/api/opensource"
+    )
+    backend: str = strawberry.field(
+        default="api", description="推理后端：vllm/trtllm/tgi/api"
     )
     params_b: Optional[float] = strawberry.field(default=None, description="参数量（B）")
     context_length: Optional[int] = strawberry.field(
@@ -118,8 +166,6 @@ class DatasetType:
     description: Optional[str] = strawberry.field(default=None, description="数据集描述")
 
 
-
-
 @strawberry.type
 class EvalTaskType:
     id: int = strawberry.field(description="任务ID")
@@ -143,6 +189,30 @@ class EvalTaskType:
     error_type: Optional[str] = strawberry.field(default=None, description="失败类型")
     created_at: Optional[str] = strawberry.field(default=None, description="创建时间")
     updated_at: Optional[str] = strawberry.field(default=None, description="更新时间")
+
+
+@strawberry.type
+class ModelsPageType:
+    items: List[ModelType] = strawberry.field(description="当前页模型列表")
+    total: int = strawberry.field(description="符合条件的总条数")
+    page: int = strawberry.field(description="当前页（从 1 起）")
+    page_size: int = strawberry.field(description="每页条数")
+
+
+@strawberry.type
+class DatasetsPageType:
+    items: List[DatasetType] = strawberry.field(description="当前页数据集列表")
+    total: int = strawberry.field(description="总条数")
+    page: int = strawberry.field(description="当前页（从 1 起）")
+    page_size: int = strawberry.field(description="每页条数")
+
+
+@strawberry.type
+class TasksPageType:
+    items: List[EvalTaskType] = strawberry.field(description="当前页任务列表")
+    total: int = strawberry.field(description="符合条件的总条数")
+    page: int = strawberry.field(description="当前页（从 1 起）")
+    page_size: int = strawberry.field(description="每页条数")
 
 
 @strawberry.input

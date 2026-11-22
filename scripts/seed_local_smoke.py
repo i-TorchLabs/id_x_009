@@ -13,7 +13,7 @@ if str(REPO_ROOT) not in sys.path:
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from x_models.id_x_009.src.models.x_models import Base, Dataset, Model
+from x_models.id_x_009.src.models.x_models import Base, Dataset, ModelsInfo as Model
 
 
 def dsn() -> str:
@@ -43,9 +43,14 @@ async def main() -> None:
                 vendor="local",
                 series="smoke",
                 version="dev",
+                base_url=os.getenv("ID009_LLM_BASE_URL", "https://apihk.chinarouter.net/v1"),
+                api_key=os.getenv("ID009_LLM_API_KEY", ""),
+                model_name="local-smoke-model",
                 access_type="api",
                 backend="api",
                 context_length=32768,
+                input_price_per_1m=0.0,
+                output_price_per_1m=0.0,
             )
             session.add(model)
         dataset = (

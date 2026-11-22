@@ -10,14 +10,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import LeftPanel from "@/components/LeftPanel";
 import LoginForm from "@/components/LoginForm";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LocaleToggle } from "@/components/LocaleToggle";
 import { AUTH_BASE, EMAIL_REGEX, PASSWORD_MIN_LEN } from "@/components/auth/constants";
 import { useTheme } from "@/context/ThemeContext";
+import { useI18n } from "@/context/LocaleContext";
 import { userGraphqlApi } from "@/api/graphql";
 
 export default function LoginPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { theme } = useTheme();
+    const { t } = useI18n();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -43,13 +46,13 @@ export default function LoginPage() {
         let ok = true;
         const trimmed = email.trim();
         if (!trimmed || !EMAIL_REGEX.test(trimmed)) {
-            setEmailError("请输入有效邮箱");
+            setEmailError(t("login.errorValidEmailRequired"));
             ok = false;
         } else {
             setEmailError("");
         }
         if (!password || password.length < PASSWORD_MIN_LEN) {
-            setPasswordError(`密码至少 ${PASSWORD_MIN_LEN} 位`);
+            setPasswordError(t("login.errorPasswordMinLength", { min: PASSWORD_MIN_LEN }));
             ok = false;
         } else {
             setPasswordError("");
@@ -78,10 +81,10 @@ export default function LoginPage() {
                 }
                 router.push(`${AUTH_BASE}/home`);
             } else {
-                setErrorMsg(result.login.message || "登录失败，请检查邮箱与密码");
+                setErrorMsg(result.login.message || t("login.errorLoginFailed"));
             }
         } catch (err) {
-            setErrorMsg(err instanceof Error ? err.message : "网络错误，请稍后重试");
+            setErrorMsg(err instanceof Error ? err.message : t("common.networkError"));
         } finally {
             setIsSubmitting(false);
         }
@@ -89,7 +92,8 @@ export default function LoginPage() {
 
     return (
         <div className="relative h-screen overflow-hidden">
-            <div className="absolute top-4 right-4 z-50 flex items-center gap-1">
+            <div className="absolute top-4 right-4 z-50 flex items-center gap-0">
+                <LocaleToggle />
                 <ThemeToggle />
             </div>
 

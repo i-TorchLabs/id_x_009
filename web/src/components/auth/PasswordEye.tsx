@@ -1,11 +1,14 @@
 "use client";
 
+import { useI18n } from "@/context/LocaleContext";
+
 interface PasswordEyeProps {
     visible: boolean;
     onToggle: () => void;
 }
 
 export function PasswordEye({ visible, onToggle }: PasswordEyeProps) {
+    const { t } = useI18n();
     return (
         <button
             type="button"
@@ -18,7 +21,7 @@ export function PasswordEye({ visible, onToggle }: PasswordEyeProps) {
             onMouseLeave={(e) => {
                 e.currentTarget.style.color = "var(--fg-3)";
             }}
-            aria-label={visible ? "隐藏密码" : "显示密码"}
+            aria-label={visible ? t("a11y.hidePassword") : t("a11y.showPassword")}
         >
             {visible ? (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

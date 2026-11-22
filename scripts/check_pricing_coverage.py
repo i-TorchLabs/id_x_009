@@ -24,13 +24,17 @@ async def main() -> int:
         raise SystemExit("Missing TOKEN environment variable")
     request = urllib.request.Request(
         api,
-        data=json.dumps({"query": "{ models { name inputPricePer1m outputPricePer1m } }"}).encode(),
+        data=json.dumps(
+            {
+                "query": "{ models(page: 1, pageSize: 500) { items { name inputPricePer1m outputPricePer1m } total } }"
+            }
+        ).encode(),
         headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=30) as response:
         payload = json.loads(response.read().decode())
-    models = payload.get("data", {}).get("models", [])
+    models = payload.get("data", {}).get("models", {}).get("items", []) or []
     prices = load_model_prices()
     unavailable_payload = json.loads(UNPRICED_FILE.read_text(encoding="utf-8"))
     unavailable = {item["model_key"] for item in unavailable_payload.get("models", [])}

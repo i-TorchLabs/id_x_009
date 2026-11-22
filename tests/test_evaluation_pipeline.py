@@ -31,6 +31,12 @@ class EvaluationPipelineTests(unittest.TestCase):
         self.assertEqual(score_exact_match("London", "paris"), 0.0)
         self.assertIsNone(score_exact_match("Paris", None))
 
+    def test_exact_match_accepts_short_gold_inside_answer(self):
+        self.assertEqual(
+            score_exact_match("The capital is Paris.", "Paris"), 100.0
+        )
+        self.assertEqual(score_exact_match("Answer: 323", "323"), 100.0)
+
     def test_evaluate_samples_and_aggregate(self):
         samples = [
             EvalSample(

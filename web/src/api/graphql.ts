@@ -137,11 +137,14 @@ export interface DomainScore {
 }
 
 export interface ModelItem {
-  id: string;
+  id: number;
   name: string;
   vendor: string;
   series: string;
   version: string;
+  baseUrl: string;
+  apiKeyMasked: string;
+  modelName: string;
   accessType: string;
   backend: string;
   paramsB: number | null;
@@ -152,7 +155,7 @@ export interface ModelItem {
 }
 
 export interface DatasetItem {
-  id: string;
+  id: number;
   name: string;
   version: string;
   snapshot: string;
@@ -184,16 +187,38 @@ export interface RegisterModelInput {
   vendor: string;
   series: string;
   version: string;
-  accessType: string;
-  backend: string;
+  baseUrl: string;
+  apiKey: string;
+  modelName: string;
+  inputPricePer1m?: number | null;
+  outputPricePer1m?: number | null;
+  accessType?: string;
+  backend?: string;
+  paramsB?: number | null;
+  contextLength?: number | null;
+}
+
+export interface UpdateModelInput {
+  modelId: number;
+  name: string;
+  vendor: string;
+  series: string;
+  version: string;
+  baseUrl: string;
+  apiKey?: string | null;
+  modelName: string;
+  inputPricePer1m?: number | null;
+  outputPricePer1m?: number | null;
+  accessType?: string;
+  backend?: string;
   paramsB?: number | null;
   contextLength?: number | null;
 }
 
 export interface CreateTaskInput {
   name: string;
-  modelId: string;
-  datasetIds: string[];
+  modelId: number;
+  datasetIds: number[];
   backend: string;
   temperature: number;
   maxTokens: number;
@@ -270,17 +295,26 @@ export interface SampleResult {
   latencyMs: number | null;
 }
 
+export interface PageResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface ListModelsPayload {
-  models: ModelItem[];
+  models: PageResult<ModelItem>;
 }
 
 export interface ListDatasetsPayload {
-  datasets: DatasetItem[];
+  datasets: PageResult<DatasetItem>;
 }
 
 export interface ListTasksPayload {
-  tasks: EvalTaskItem[];
+  tasks: PageResult<EvalTaskItem>;
 }
+
+export const PAGE_SIZE = 16;
 
 export interface TaskDetailPayload {
   taskDetail: EvalTaskItem | null;
@@ -302,6 +336,14 @@ export interface RegisterModelPayload {
   };
 }
 
+export interface UpdateModelPayload {
+  updateModel: {
+    success: boolean;
+    message: string;
+    model: ModelItem | null;
+  };
+}
+
 export interface CreateTaskPayload {
   createTask: {
     success: boolean;
@@ -317,6 +359,16 @@ export interface TaskActionPayload {
     status: string;
   };
   resumeTask?: {
+    success: boolean;
+    message: string;
+    status: string;
+  };
+  deleteTask?: {
+    success: boolean;
+    message: string;
+    status: string;
+  };
+  deleteModel?: {
     success: boolean;
     message: string;
     status: string;
@@ -412,81 +464,147 @@ export const userGraphqlApi = {
 
 
 export const evalGraphqlApi = {
-  listModels: async (
-    vendor?: string,
-    accessType?: string,
-  ): Promise<ListModelsPayload> => {
+  listModels: async (filter?: {
+    vendor?: string;
+    accessType?: string;
+    name?: string;
+    series?: string;
+    modelName?: string;
+    q?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<ListModelsPayload> => {
     const query = `
-      query Models($vendor: String, $accessType: String) {
-        models(vendor: $vendor, accessType: $accessType) {
-          id
-          name
-          vendor
-          series
-          version
-          accessType
-          backend
-          paramsB
-          contextLength
-          inputPricePer1m
-          outputPricePer1m
-          createdAt
+      query Models(
+        $vendor: String
+        $accessType: String
+        $name: String
+        $series: String
+        $modelName: String
+        $q: String
+        $page: Int
+        $pageSize: Int
+      ) {
+        models(
+          vendor: $vendor
+          accessType: $accessType
+          name: $name
+          series: $series
+          modelName: $modelName
+          q: $q
+          page: $page
+          pageSize: $pageSize
+        ) {
+          items {
+            id
+            name
+            vendor
+            series
+            version
+            baseUrl
+            apiKeyMasked
+            modelName
+            accessType
+            backend
+            paramsB
+            contextLength
+            inputPricePer1m
+            outputPricePer1m
+            createdAt
+          }
+          total
+          page
+          pageSize
         }
       }
     `;
 
     return graphqlClient.request<ListModelsPayload>({
       query,
-      variables: { vendor, accessType },
+      variables: {
+        vendor: filter?.vendor || undefined,
+        accessType: filter?.accessType || undefined,
+        name: filter?.name || undefined,
+        series: filter?.series || undefined,
+        modelName: filter?.modelName || undefined,
+        q: filter?.q || undefined,
+        page: filter?.page ?? 1,
+        pageSize: filter?.pageSize ?? PAGE_SIZE,
+      },
     });
   },
 
-  listDatasets: async (): Promise<ListDatasetsPayload> => {
+  listDatasets: async (opts?: {
+    page?: number;
+    pageSize?: number;
+  }): Promise<ListDatasetsPayload> => {
     const query = `
-      query Datasets {
-        datasets {
-          id
-          name
-          version
-          snapshot
-          domain
-          sampleCount
-          description
+      query Datasets($page: Int, $pageSize: Int) {
+        datasets(page: $page, pageSize: $pageSize) {
+          items {
+            id
+            name
+            version
+            snapshot
+            domain
+            sampleCount
+            description
+          }
+          total
+          page
+          pageSize
         }
       }
     `;
 
     return graphqlClient.request<ListDatasetsPayload>({
       query,
+      variables: {
+        page: opts?.page ?? 1,
+        pageSize: opts?.pageSize ?? PAGE_SIZE,
+      },
     });
   },
 
-  listTasks: async (status?: string): Promise<ListTasksPayload> => {
+  listTasks: async (opts?: {
+    status?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<ListTasksPayload> => {
     const query = `
-      query Tasks($status: String) {
-        tasks(status: $status) {
-          id
-          taskUid
-          name
-          modelId
-          modelName
-          modelVendor
-          datasetIds
-          backend
-          status
-          progress
-          fingerprint
-          error
-          errorType
-          createdAt
-          updatedAt
+      query Tasks($status: String, $page: Int, $pageSize: Int) {
+        tasks(status: $status, page: $page, pageSize: $pageSize) {
+          items {
+            id
+            taskUid
+            name
+            modelId
+            modelName
+            modelVendor
+            datasetIds
+            backend
+            status
+            progress
+            fingerprint
+            error
+            errorType
+            createdAt
+            updatedAt
+          }
+          total
+          page
+          pageSize
         }
       }
     `;
 
     return graphqlClient.request<ListTasksPayload>({
       query,
-      variables: { status },
+      variables: {
+        status: opts?.status,
+        page: opts?.page ?? 1,
+        pageSize: opts?.pageSize ?? PAGE_SIZE,
+      },
     });
   },
 
@@ -619,10 +737,13 @@ export const evalGraphqlApi = {
             vendor
             series
             version
+            baseUrl
+            apiKeyMasked
+            modelName
             accessType
             backend
-            paramsB
-            contextLength
+            inputPricePer1m
+            outputPricePer1m
             createdAt
           }
         }
@@ -630,6 +751,56 @@ export const evalGraphqlApi = {
     `;
 
     return graphqlClient.request<RegisterModelPayload>({
+      query: mutation,
+      variables: { input },
+    });
+  },
+
+  deleteModel: async (modelId: number): Promise<TaskActionPayload> => {
+    const mutation = `
+      mutation DeleteModel($modelId: Int!) {
+        deleteModel(modelId: $modelId) {
+          success
+          message
+          status
+        }
+      }
+    `;
+
+    return graphqlClient.request<TaskActionPayload>({
+      query: mutation,
+      variables: { modelId },
+    });
+  },
+
+  updateModel: async (
+    input: UpdateModelInput,
+  ): Promise<UpdateModelPayload> => {
+    const mutation = `
+      mutation UpdateModel($input: UpdateModelInput!) {
+        updateModel(input: $input) {
+          success
+          message
+          model {
+            id
+            name
+            vendor
+            series
+            version
+            baseUrl
+            apiKeyMasked
+            modelName
+            accessType
+            backend
+            inputPricePer1m
+            outputPricePer1m
+            createdAt
+          }
+        }
+      }
+    `;
+
+    return graphqlClient.request<UpdateModelPayload>({
       query: mutation,
       variables: { input },
     });
@@ -661,9 +832,25 @@ export const evalGraphqlApi = {
       }
     `;
 
+    // GraphQL CreateTaskInput.modelId / datasetIds 均为 Int；表单 value 常为 string
+    const modelId = Number(input.modelId);
+    const datasetIds = input.datasetIds.map((id) => Number(id));
+    if (!Number.isInteger(modelId) || modelId <= 0) {
+      throw new Error("modelId must be a positive integer");
+    }
+    if (datasetIds.length === 0 || datasetIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+      throw new Error("datasetIds must be positive integers");
+    }
+
     return graphqlClient.request<CreateTaskPayload>({
       query: mutation,
-      variables: { input },
+      variables: {
+        input: {
+          ...input,
+          modelId,
+          datasetIds,
+        },
+      },
     });
   },
 
@@ -688,6 +875,23 @@ export const evalGraphqlApi = {
     const mutation = `
       mutation ResumeTask($taskUid: String!) {
         resumeTask(taskUid: $taskUid) {
+          success
+          message
+          status
+        }
+      }
+    `;
+
+    return graphqlClient.request<TaskActionPayload>({
+      query: mutation,
+      variables: { taskUid },
+    });
+  },
+
+  deleteTask: async (taskUid: string): Promise<TaskActionPayload> => {
+    const mutation = `
+      mutation DeleteTask($taskUid: String!) {
+        deleteTask(taskUid: $taskUid) {
           success
           message
           status

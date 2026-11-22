@@ -32,7 +32,16 @@ def main() -> int:
     token = os.getenv(args.token_env, "").strip()
     if not token:
         raise SystemExit(f"Missing GraphQL token environment variable: {args.token_env}")
-    models = call(args.api, token, "{ models { id name vendor backend inputPricePer1m outputPricePer1m } }").get("data", {}).get("models", [])
+    models = (
+        call(
+            args.api,
+            token,
+            "{ models(page: 1, pageSize: 500) { items { id name vendor backend inputPricePer1m outputPricePer1m } total } }",
+        )
+        .get("data", {})
+        .get("models", {})
+        .get("items", [])
+    )
     selected_ids = None
     if args.only_model_ids:
         selected_ids = {int(value.strip()) for value in args.only_model_ids.split(",") if value.strip()}
