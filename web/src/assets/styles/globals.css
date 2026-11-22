@@ -1,91 +1,224 @@
 @import "tailwindcss";
 @import "@heroui/react/styles";
 
-:root {
-    --color-pure-black: #000000;
-    --color-near-black: #1d1d1f;
-    --color-light-gray: #f5f5f7;
-    --color-apple-blue: #0071e3;
-    --color-link-blue: #0066cc;
-    --color-bright-blue: #2997ff;
-    --color-error: #dc2626;
+/* ====================================================================
+   id_x_009 · STANDARD-UI Token（prompts/STANDARD-UI.md）
+   ==================================================================== */
 
-    --color-bg-dark: #1a1a2e;
-    --color-purple-hover: #5b21b6;
-    --color-left-bg-start: #d4d0dc;
-    --color-left-bg-mid: #c8c4d0;
-    --color-left-bg-end: #bbb7c5;
+:root,
+[data-theme="light"] {
+    color-scheme: light;
 
-    --color-dark-surface-1: #272729;
-    --color-dark-surface-2: #262628;
-    --color-dark-surface-3: #28282a;
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --hairline: rgba(0, 0, 0, 0.08);
+    --divider: rgba(0, 0, 0, 0.06);
+    --input-bg: rgba(0, 0, 0, 0.03);
+    --input-border: rgba(0, 0, 0, 0.1);
+    --surface-1: #ffffff;
 
-    --color-button-active: #ededf2;
-    --color-button-default-light: #fafafc;
+    --fg: #1d1d1f;
+    --fg-2: rgba(0, 0, 0, 0.8);
+    --fg-3: rgba(0, 0, 0, 0.48);
+    --fg-4: rgba(0, 0, 0, 0.25);
+
+    --accent: #000000;
+    --accent-fg: #ffffff;
+    --accent-hover: #1d1d1f;
+    --link: #000000;
+
+    --error: #dc2626;
+    --error-bg: rgba(255, 59, 48, 0.05);
+    --error-border: rgba(255, 59, 48, 0.15);
+    --success: #000000;
 
     --shadow-card: rgba(0, 0, 0, 0.22) 3px 5px 30px 0px;
 
-    --color-focus: #0071e3;
-}
+    --r-sm: 5px;
+    --r-md: 8px;
+    --r-input: 11px;
+    --r-card: 12px;
+    --r-pill: 980px;
 
-[data-theme="light"] {
-    --bg-primary: #ffffff;
-    --bg-secondary: #f5f5f7;
-    --bg-input: #f7f7f8;
-    --text-primary: #1d1d1f;
-    --text-secondary: rgba(0, 0, 0, 0.6);
-    --text-muted: #6b7280;
-    --border-color: #d1d1d6;
-    --border-light: #e5e7eb;
-    --icon-color: #6b7280;
-    --input-bg: #f7f7f8;
+    --nav-bg: rgba(255, 255, 255, 0.72);
+    --nav-fg: #1d1d1f;
+
+    --background: var(--bg);
+    --foreground: var(--fg);
+    --surface: var(--card);
+    --accent-foreground: var(--accent-fg);
+    --danger: var(--error);
+    --danger-foreground: #ffffff;
+    --field-background: var(--input-bg);
+    --field-border: var(--input-border);
+
+    /* 兼容旧变量名 */
+    --bg-primary: var(--card);
+    --bg-secondary: var(--bg);
+    --text-primary: var(--fg);
+    --text-secondary: var(--fg-2);
+    --text-muted: var(--fg-3);
+    --border-color: var(--hairline);
+    --input-bg-legacy: var(--input-bg);
 }
 
 [data-theme="dark"] {
-    --bg-primary: #000000;
-    --bg-secondary: #161618;
-    --bg-input: #1f1f23;
-    --text-primary: #ffffff;
-    --text-secondary: rgba(255, 255, 255, 0.6);
-    --text-muted: #9ca3af;
-    --border-color: #2a2a2d;
-    --border-light: #374151;
-    --icon-color: #9ca3af;
-    --input-bg: #1f1f23;
-}
+    color-scheme: dark;
 
-@theme inline {
-    --color-background: var(--color-pure-black);
-    --color-foreground: #ffffff;
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
+    --bg: #000000;
+    --card: #1c1c1e;
+    --hairline: rgba(255, 255, 255, 0.12);
+    --divider: rgba(255, 255, 255, 0.08);
+    --input-bg: rgba(255, 255, 255, 0.05);
+    --input-border: rgba(255, 255, 255, 0.12);
+    --surface-1: #272729;
+
+    --fg: #ffffff;
+    --fg-2: rgba(255, 255, 255, 0.8);
+    --fg-3: rgba(255, 255, 255, 0.48);
+    --fg-4: rgba(255, 255, 255, 0.25);
+
+    --accent: #ffffff;
+    --accent-fg: #000000;
+    --accent-hover: #ededf2;
+    --link: #ffffff;
+
+    --error: #dc2626;
+    --error-bg: rgba(255, 59, 48, 0.1);
+    --error-border: rgba(255, 59, 48, 0.2);
+    --success: #ffffff;
+
+    --shadow-card: rgba(0, 0, 0, 0.22) 3px 5px 30px 0px;
+
+    --nav-bg: rgba(0, 0, 0, 0.72);
+    --nav-fg: #ffffff;
+
+    --background: var(--bg);
+    --foreground: var(--fg);
+    --surface: var(--card);
+    --accent-foreground: var(--accent-fg);
+    --danger: var(--error);
+    --danger-foreground: #ffffff;
+    --field-background: var(--input-bg);
+    --field-border: var(--input-border);
+
+    --bg-primary: var(--card);
+    --bg-secondary: var(--bg);
+    --text-primary: var(--fg);
+    --text-secondary: var(--fg-2);
+    --text-muted: var(--fg-3);
+    --border-color: var(--hairline);
 }
 
 *,
 *::before,
 *::after {
-    margin: 0;
-    padding: 0;
     box-sizing: border-box;
 }
 
+html,
 body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--fg);
     font-family:
         "SF Pro Text",
         -apple-system,
         BlinkMacSystemFont,
-        "Segoe UI",
-        Helvetica Neue,
+        "Helvetica Neue",
         Helvetica,
         Arial,
         sans-serif;
-    background: var(--color-pure-black);
-    overflow: hidden;
-    height: 100vh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
+.theme-transition {
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease;
+}
+
+.font-display {
+    font-family:
+        "SF Pro Display",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Helvetica Neue",
+        Helvetica,
+        Arial,
+        sans-serif;
+    letter-spacing: -0.02em;
+}
+
+.font-text {
+    font-family:
+        "SF Pro Text",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Helvetica Neue",
+        Helvetica,
+        Arial,
+        sans-serif;
+    letter-spacing: -0.01em;
+}
+
+.nav-glass {
+    background: var(--nav-bg);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    color: var(--nav-fg);
+}
+
+.card {
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: none;
+}
+
+.card--lift {
+    box-shadow: var(--shadow-card);
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-radius: var(--r-pill);
+    padding: 0.55rem 1.4rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    transition:
+        opacity 0.2s ease,
+        transform 0.1s ease;
+}
+
+.btn-primary:hover {
+    opacity: 0.85;
+}
+
+.btn-primary:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.lift-card {
+    transition:
+        transform 0.25s cubic-bezier(0.25, 0.4, 0.25, 1),
+        box-shadow 0.25s cubic-bezier(0.25, 0.4, 0.25, 1);
+}
+
+.lift-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card);
+}
 
 ::-webkit-scrollbar {
     width: 10px;
@@ -98,50 +231,18 @@ body {
 
 ::-webkit-scrollbar-thumb {
     border-radius: 5px;
-    background-color: var(--border-color);
+    background-color: var(--hairline);
     border: 2px solid transparent;
     background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--text-muted);
+    background-color: var(--fg-4);
 }
 
 * {
     scrollbar-width: thin;
-    scrollbar-color: var(--border-color) transparent;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
-    background-color: #30363d;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-    background-color: #484f58;
-}
-
-[data-theme="dark"] {
-    scrollbar-color: #30363d transparent;
-}
-
-[data-theme="light"] ::-webkit-scrollbar-thumb {
-    background-color: #d1d5db;
-}
-
-[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-    background-color: #9ca3af;
-}
-
-[data-theme="light"] {
-    scrollbar-color: #d1d5db transparent;
-}
-
-[data-row] {
-    transition: background-color 0.15s ease;
-}
-
-[data-row]:hover {
-    background-color: rgba(127, 127, 127, 0.07);
+    scrollbar-color: var(--hairline) transparent;
 }
 
 table,
@@ -150,19 +251,10 @@ code {
     font-variant-numeric: tabular-nums;
 }
 
-.lift-card {
-    transition:
-        transform 0.25s cubic-bezier(0.25, 0.4, 0.25, 1),
-        box-shadow 0.25s cubic-bezier(0.25, 0.4, 0.25, 1);
+[data-row] {
+    transition: background-color 0.15s ease;
 }
 
-.lift-card:hover {
-    transform: translateY(-2px);
-}
-
-
-@media (max-width: 900px) {
-    .left-panel {
-        display: none;
-    }
+[data-row]:hover {
+    background-color: rgba(127, 127, 127, 0.07);
 }

@@ -1,141 +1,159 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useTheme } from "@/context/ThemeContext";
-import { ThemeToggle } from "./ThemeToggle";
-import LeftPanel from "./LeftPanel";
-import RegisterForm from "./RegisterForm";
-import { userGraphqlApi } from "@/api/graphql";
+/**
+ * 注册页（STANDARD-FRONTEND）
+ * 成功后不自动登录，跳转 login?registered=true。
+ */
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import LeftPanel from "@/components/LeftPanel";
+import RegisterForm from "@/components/RegisterForm";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+    AUTH_BASE,
+    EMAIL_REGEX,
+    PASSWORD_MIN_LEN,
+    PHONE_REGEX,
+} from "@/components/auth/constants";
+import { useTheme } from "@/context/ThemeContext";
+import { userGraphqlApi } from "@/api/graphql";
 
 export default function RegisterPage() {
     const router = useRouter();
     const { theme } = useTheme();
-    const isDark = theme === "dark";
+
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [agreeTerms, setAgreeTerms] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
     const [errorMsg, setErrorMsg] = useState("");
-    const [emailError, setEmailError] = useState(false);
-    const [phoneError, setPhoneError] = useState(false);
-    const [passwordError, setPasswordError] = useState(false);
-    const [confirmPasswordError, setConfirmPasswordError] = useState(false);
+    const [emailError, setEmailError] = useState("");
+    const [phoneError, setPhoneError] = useState("");
+    const [passwordError, setPasswordError] = useState("");
+    const [confirmError, setConfirmError] = useState("");
+    const [termsError, setTermsError] = useState("");
 
-    const onSubmit = useCallback(
-        async (e: React.FormEvent) => {
-            e.preventDefault();
-            setEmailError(false);
-            setPhoneError(false);
-            setPasswordError(false);
-            setConfirmPasswordError(false);
-            setErrorMsg("");
+    const validate = (): boolean => {
+        let ok = true;
+        const trimmed = email.trim();
+        if (!trimmed || !EMAIL_REGEX.test(trimmed)) {
+            setEmailError("请输入有效邮箱");
+            ok = false;
+        } else {
+            setEmailError("");
+        }
 
-            const cleanEmail = email.trim();
+        const phoneTrim = phone.trim();
+        if (phoneTrim && !PHONE_REGEX.test(phoneTrim)) {
+            setPhoneError("手机号须为 11 位数字");
+            ok = false;
+        } else {
+            setPhoneError("");
+        }
+
+        if (!password || password.length < PASSWORD_MIN_LEN) {
+            setPasswordError(`密码至少 ${PASSWORD_MIN_LEN} 位`);
+            ok = false;
+        } else {
+            setPasswordError("");
+        }
+
+        if (confirmPassword !== password) {
+            setConfirmError("两次输入的密码不一致");
+            ok = false;
+        } else {
+            setConfirmError("");
+        }
+
+        if (!agreeTerms) {
+            setTermsError("请先同意服务条款");
+            ok = false;
+        } else {
+            setTermsError("");
+        }
+
+        return ok;
+    };
+
+    const onSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        setErrorMsg("");
+        if (!validate()) return;
+
+        setIsSubmitting(true);
+        try {
             const cleanPhone = phone.trim();
-
-            if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
-                setEmailError(true);
-                setErrorMsg("Please enter a valid email address.");
-                return;
+            const result = await userGraphqlApi.register({
+                email: email.trim(),
+                password,
+                confirmPassword,
+                ...(cleanPhone ? { phone: cleanPhone } : {}),
+            });
+            if (result.register.success) {
+                router.push(`${AUTH_BASE}/login?registered=true`);
+            } else {
+                setErrorMsg(result.register.message || "注册失败");
             }
-
-            if (
-                cleanPhone &&
-                (cleanPhone.length !== 11 || !/^\d{11}$/.test(cleanPhone))
-            ) {
-                setPhoneError(true);
-                setErrorMsg("Phone number must be exactly 11 digits.");
-                return;
-            }
-
-            if (!password || password.length < 6) {
-                setPasswordError(true);
-                setErrorMsg("Password must be at least 6 characters.");
-                return;
-            }
-
-            if (password !== confirmPassword) {
-                setConfirmPasswordError(true);
-                setErrorMsg("Passwords do not match.");
-                return;
-            }
-
-            setIsSubmitting(true);
-
-            try {
-                const result = await userGraphqlApi.register({
-                    email: cleanEmail,
-                    password: password,
-                    confirmPassword: confirmPassword,
-                    ...(cleanPhone && { phone: cleanPhone }),
-                });
-
-                console.log("Registration result:", result);
-
-                if (!result.register.success) {
-                    setErrorMsg(result.register.message || "注册失败，请重试");
-                    return;
-                }
-
-                router.push("/f/login?registered=true");
-            } catch (error: any) {
-                console.error("Registration failed:", error);
-                setErrorMsg(error.message || "注册失败，请重试");
-            } finally {
-                setIsSubmitting(false);
-            }
-        },
-        [email, phone, password, confirmPassword, router],
-    );
+        } catch (err) {
+            setErrorMsg(err instanceof Error ? err.message : "网络错误，请稍后重试");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
-        <div className="h-screen relative overflow-hidden">
-            <div className="absolute top-4 right-4 z-50">
+        <div className="relative h-screen overflow-hidden">
+            <div className="absolute top-4 right-4 z-50 flex items-center gap-1">
                 <ThemeToggle />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 h-full">
+
+            <div className="grid h-full grid-cols-1 md:grid-cols-2">
                 <LeftPanel
                     isTyping={isTyping}
                     isPasswordFocused={isPasswordFocused}
                     showPassword={showPassword}
                     passwordLength={password.length}
-                    isDark={isDark}
+                    isDark={theme === "dark"}
                 />
 
                 <div
-                    className={`flex items-center justify-center px-8 py-12 md:px-16 md:py-16 ${isDark ? "bg-[#000000]" : "bg-[#f5f5f7]"}`}
+                    className="flex items-center justify-center p-8 md:p-10 theme-transition"
+                    style={{ background: "var(--bg)" }}
                 >
                     <RegisterForm
                         email={email}
-                        setEmail={setEmail}
                         phone={phone}
-                        setPhone={setPhone}
                         password={password}
-                        setPassword={setPassword}
                         confirmPassword={confirmPassword}
-                        setConfirmPassword={setConfirmPassword}
+                        agreeTerms={agreeTerms}
                         showPassword={showPassword}
-                        setShowPassword={setShowPassword}
-                        isTyping={isTyping}
-                        setIsTyping={setIsTyping}
-                        isPasswordFocused={isPasswordFocused}
-                        setIsPasswordFocused={setIsPasswordFocused}
+                        showConfirmPassword={showConfirmPassword}
                         isSubmitting={isSubmitting}
-                        onSubmit={onSubmit}
                         errorMsg={errorMsg}
                         emailError={emailError}
                         phoneError={phoneError}
                         passwordError={passwordError}
-                        confirmPasswordError={confirmPasswordError}
-                        isDark={isDark}
+                        confirmError={confirmError}
+                        termsError={termsError}
+                        onEmailChange={setEmail}
+                        onPhoneChange={setPhone}
+                        onPasswordChange={setPassword}
+                        onConfirmPasswordChange={setConfirmPassword}
+                        onAgreeTermsChange={setAgreeTerms}
+                        onToggleShowPassword={() => setShowPassword((v) => !v)}
+                        onToggleShowConfirmPassword={() => setShowConfirmPassword((v) => !v)}
+                        onEmailFocus={() => setIsTyping(true)}
+                        onEmailBlur={() => setIsTyping(false)}
+                        onPasswordFocus={() => setIsPasswordFocused(true)}
+                        onPasswordBlur={() => setIsPasswordFocused(false)}
+                        onSubmit={onSubmit}
                     />
                 </div>
             </div>

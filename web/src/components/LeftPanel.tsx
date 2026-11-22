@@ -20,21 +20,21 @@ export default function LeftPanel({
 }: LeftPanelProps) {
   const overlayBg = isDark
     ? "rgba(28, 28, 30, 0.55)"
-    : "rgba(243, 243, 245, 0.55)";
+    : "rgba(212, 212, 218, 0.42)";
   const linkColor = isDark
     ? "rgba(200, 200, 200, 0.7)"
     : "rgba(60, 60, 60, 0.7)";
 
   return (
     <div className="relative hidden md:flex flex-col justify-between px-10 py-10 overflow-hidden">
-      { }
+      {/* ── Background: vivid color blobs as blur source ── */}
       <div className="absolute inset-0 z-0">
         <div
           className="absolute top-[10%] left-[5%] w-75 h-75 rounded-full"
           style={{
             background: isDark
               ? "rgba(60, 60, 60, 0.4)"
-              : "rgba(214, 214, 218, 0.6)",
+              : "rgba(175, 175, 182, 0.6)",
             filter: "blur(80px)",
           }}
         />
@@ -43,7 +43,7 @@ export default function LeftPanel({
           style={{
             background: isDark
               ? "rgba(80, 80, 80, 0.3)"
-              : "rgba(224, 224, 228, 0.55)",
+              : "rgba(180, 180, 187, 0.55)",
             filter: "blur(80px)",
           }}
         />
@@ -52,7 +52,7 @@ export default function LeftPanel({
           style={{
             background: isDark
               ? "rgba(50, 50, 50, 0.25)"
-              : "rgba(234, 234, 236, 0.5)",
+              : "rgba(190, 190, 197, 0.5)",
             filter: "blur(100px)",
           }}
         />
@@ -61,13 +61,13 @@ export default function LeftPanel({
           style={{
             background: isDark
               ? "rgba(70, 70, 70, 0.3)"
-              : "rgba(218, 218, 222, 0.55)",
+              : "rgba(178, 178, 185, 0.55)",
             filter: "blur(70px)",
           }}
         />
       </div>
 
-      { }
+      {/* ── Frosted glass overlay ── */}
       <div
         className="absolute inset-0 z-1"
         style={{
@@ -77,18 +77,25 @@ export default function LeftPanel({
         }}
       />
 
-      { }
+      {/* Logo */}
       <div className="absolute top-4 left-4 z-10 flex items-center gap-2.5 px-3 py-2 rounded-lg">
-        { }
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/favicon.ico"
           alt="评测平台 logo"
           className="w-7 h-7"
         />
-        <span className="text-base font-semibold text-white">评测平台 · id_x_009</span>
+        {/* 主题适配：浅色模式为黑色，深色模式保持白色以保证可读性 */}
+        <span
+          className={`text-base font-semibold ${
+            isDark ? "text-white" : "text-black"
+          }`}
+        >
+          评测平台
+        </span>
       </div>
 
-      { }
+      {/* Animated Characters */}
       <div className="relative z-10 flex-1 flex items-center justify-center min-h-0">
         <AnimatedCharacters
           isTyping={isTyping}
@@ -98,30 +105,18 @@ export default function LeftPanel({
         />
       </div>
 
-      { }
+      {/* Footer Links */}
       <div
         className="absolute left-2 bottom-2 flex gap-7 text-[13px] z-10"
         style={{ color: linkColor }}
       >
-        <a
-          href="#"
-          className="hover:transition-colors duration-200"
-          style={{ color: linkColor }}
-        >
+        <a href="#" className="hover:transition-colors duration-200" style={{ color: linkColor }}>
           Privacy Policy
         </a>
-        <a
-          href="#"
-          className="hover:transition-colors duration-200"
-          style={{ color: linkColor }}
-        >
+        <a href="#" className="hover:transition-colors duration-200" style={{ color: linkColor }}>
           Terms of Service
         </a>
-        <a
-          href="#"
-          className="hover:transition-colors duration-200"
-          style={{ color: linkColor }}
-        >
+        <a href="#" className="hover:transition-colors duration-200" style={{ color: linkColor }}>
           Contact
         </a>
       </div>

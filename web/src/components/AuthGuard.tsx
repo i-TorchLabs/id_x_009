@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { AUTH_BASE } from "@/components/auth/constants";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -15,7 +16,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
       const token = localStorage.getItem("token");
 
       if (!token) {
-        router.push("/f/login");
+        router.push(`${AUTH_BASE}/login`);
         return;
       }
 
@@ -23,19 +24,19 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
   }, [router]);
 
-  const validateToken = async (token: string) => {
+  const validateToken = async (_token: string) => {
     try {
       const user = localStorage.getItem("user");
 
       if (!user) {
         localStorage.removeItem("token");
-        router.push("/f/login");
+        router.push(`${AUTH_BASE}/login`);
       }
     } catch (error) {
       console.error("Token validation failed:", error);
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      router.push("/f/login");
+      router.push(`${AUTH_BASE}/login`);
     }
   };
 

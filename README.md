@@ -35,8 +35,8 @@
 1. **Pareto 前沿内置计算** — 服务端直接返回按成本升序、评分刷新包络的 Pareto 前沿点列与性价比排名，前端零计算即可渲染专业级图谱
 2. **任务状态机与断点续跑** — 守护线程每秒推进进度并落库，服务重启后遗留任务可通过 `resumeTask` 重新接管，工程可靠性经过验证
 3. **六能力域加权聚合** — 预定义六大能力域及权重（推理 30% / 语言 20% / 对齐 15% / 长上下文 15% / 多模态 10% / 业务 10%），支持按域独立分析与综合评分
-4. **四容器 Pod 一键部署** — HAProxy + Next.js + Litestar + PostgreSQL 同 Pod 共享网络命名空间， `./up.sh` 幂等启动，30 秒内完成全栈部署
-5. **开箱即用种子数据** — 首次建库自动注入 16 个主流模型、6 个评测数据集、16 个已完成评测任务及结果，评分图谱开箱即有数据
+4. **四容器 Pod 一键部署** — HAProxy + Next.js + Litestar + pgvector(PostgreSQL 18) 同 Pod；`./up.sh` 幂等启动
+5. **开箱即用种子数据** — 首次建库自动执行 `ops/init/*.sql`，评分图谱开箱即有演示数据
 6. **黑白学术风格 UI** — 前端遵循学术刊物图表规范（Nature / Science 风格），厂商调色板高对比低饱和，Pareto 前沿以深邃暗琥珀色突出边界语义
 
 ## 4. 技术栈 (Tech Stack)
@@ -81,7 +81,7 @@ graph TB
     end
 
     subgraph 数据层
-        PostgreSQL[(PostgreSQL 18<br>:5432)]
+        PostgreSQL[(pgvector/pg18<br>:5432)]
     end
 
     Browser -->|HTTP :8009| HAProxy
@@ -129,13 +129,17 @@ id_x_009/
 ├── docs/                    # 项目文档
 │   └── ops.md               # 部署说明文档
 ├── img/                     # 图片资源
-├── ops/                     # 容器部署配置
-│   ├── init/                # 数据库初始化脚本
-│   ├── Dockerfile.service   # 后端服务镜像
+├── ops/                     # 容器部署（内置 pgvector/pg18）
+│   ├── init/                # 首次建库 SQL（种子数据）
+│   ├── .env.example         # 容器部署环境变量模板
+│   ├── Dockerfile.service   # 后端服务镜像（多阶段）
+│   ├── compose.yaml         # podman-compose（与 up.sh 勿混用）
 │   ├── base_config.container.toml  # 容器专用配置
-│   ├── haproxy.cfg          # HAProxy 反向代理配置
+│   ├── haproxy.cfg          # Pod 模式 HAProxy
+│   ├── haproxy.compose.cfg  # compose 模式 HAProxy
 │   ├── up.sh                # 一键启动脚本
 │   └── down.sh              # 停止清理脚本
+├── .env.template            # 模块本地开发环境变量模板
 ├── src/                     # 后端源码
 │   ├── controllers/         # GraphQL 控制器层（thin resolvers）
 │   │   └── x_controllers.py
@@ -253,18 +257,19 @@ curl -X POST http://<BASE_URL>/b/id_x_009/graphql \
 
 - Podman 4.x+
 - 至少 4 GB 可用内存
-- 宿主机端口 8009 未被占用
+- 宿主机端口 8009 / 55409 未被占用
 
 ### 9.2 安装 (Installation)
 
 ```bash
-# 克隆仓库（假设已纳入 i-Core  monorepo）
 cd x_models/id_x_009/ops
 
-# 生成环境变量文件
+# 生成容器部署环境变量
 cp .env.example .env
-# 编辑 .env，修改 POSTGRES_PASSWORD
+# 编辑 .env，设置 POSTGRES_PASSWORD（及可选 ID009_LLM_*）
 ```
+
+本地非容器开发另用模块根模板：`cp .env.template .env`（由 `utils/env_loader` 加载）。
 
 ### 9.3 运行 (Run)
 
@@ -275,33 +280,28 @@ cp .env.example .env
 # 强制重建镜像并启动
 ./up.sh --build
 
-# 停止并删除 Pod 与全部容器（数据卷保留）
+# 停止并删除 Pod 与容器（保留数据卷与镜像）
 ./down.sh
+
+# 可选：同时删除数据卷 / 本项目镜像
+./down.sh --volumes
+./down.sh --images
 ```
 
-启动后访问 `http://<host>:8009`，默认演示账号：`demo@id-x-009.local` / `demo123456`。
+启动后访问 `http://<host>:8009/f/009/login`。演示账号见 `ops/init/02_seed.sql`（首次建库自动导入）。
 
 ### 9.4 容器部署 (Podman Pod)
 
-本项目采用四容器同 Pod 部署，共享 network namespace，容器间通过 `127.0.0.1` 通信：
+本项目采用**四容器同 Pod**部署，共享 network namespace：
 
-```bash
-# 手动构建镜像（在 i-Core 仓库根目录执行）
-podman build -t id_x_009-service -f x_models/id_x_009/ops/Dockerfile.service .
-podman build -t id_x_009-web -f x_models/id_x_009/web/Dockerfile \
-  --build-arg NEXT_PUBLIC_BASE_URL="" \
-  --build-arg NEXT_PUBLIC_SUB_VERSION="/b/id_x_009/graphql" \
-  x_models/id_x_009/web
-
-# 创建 Pod 并映射端口
-podman pod create --name id_x_009 -p 8009:8080
-
-# 启动各容器（详细命令见 ops/up.sh）
-podman run -d --pod id_x_009 --name id_x_009-db ...
-podman run -d --pod id_x_009 --name id_x_009-service ...
-podman run -d --pod id_x_009 --name id_x_009-web ...
-podman run -d --pod id_x_009 --name id_x_009-haproxy ...
 ```
+haproxy:8080 → web:2000 | service:7000
+db (pgvector/pg18):5432 ← service@127.0.0.1
+```
+
+详细说明见 [docs/ops.md](docs/ops.md)。日常请使用 `ops/up.sh`；`compose.yaml` 为可选替代方案，勿与 up.sh 混用。
+
+service 日志透传至模块根 `x_models/id_x_009/logs/`（`info.log` / `warn.log` / `error.log`），可用 `tail -f ../logs/info.log` 查看。
 
 ## 10. 模型评分图谱 (Model Score Graph)
 

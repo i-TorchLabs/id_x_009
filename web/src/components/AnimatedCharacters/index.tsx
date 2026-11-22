@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+// ─── Pupil Sub-Component ────────────────────────────────────────────────────
 
 interface PupilProps {
   size?: number;
@@ -71,6 +72,7 @@ function Pupil({
   );
 }
 
+// ─── EyeBall Sub-Component ───────────────────────────────────────────────────
 
 interface EyeBallProps {
   size?: number;
@@ -162,6 +164,7 @@ function EyeBall({
   );
 }
 
+// ─── AnimatedCharacters Component ───────────────────────────────────────────
 
 export interface AnimatedCharactersProps {
   isTyping?: boolean;
@@ -204,6 +207,7 @@ function AnimatedCharacters({
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
+  // Purple character random blinking
   useEffect(() => {
     const run = (): ReturnType<typeof setTimeout> => {
       const t = setTimeout(
@@ -223,6 +227,7 @@ function AnimatedCharacters({
     return () => clearTimeout(timeout);
   }, []);
 
+  // Black character random blinking
   useEffect(() => {
     const run = (): ReturnType<typeof setTimeout> => {
       const t = setTimeout(
@@ -242,6 +247,7 @@ function AnimatedCharacters({
     return () => clearTimeout(timeout);
   }, []);
 
+  // Look at each other when typing
   useEffect(() => {
     if (isTyping) {
       setIsLookingAtEachOther(true);
@@ -251,6 +257,7 @@ function AnimatedCharacters({
     setIsLookingAtEachOther(false);
   }, [isTyping]);
 
+  // Purple peeking when password is shown
   useEffect(() => {
     if (passwordLength > 0 && showPassword) {
       const peek = setTimeout(
@@ -294,7 +301,7 @@ function AnimatedCharacters({
 
   return (
     <div style={{ position: "relative", width: "550px", height: "400px" }}>
-      { }
+      {/* ── Purple Character ── */}
       <div
         ref={purpleRef}
         style={{
@@ -403,7 +410,7 @@ function AnimatedCharacters({
         </div>
       </div>
 
-      { }
+      {/* ── Black Character ── */}
       <div
         ref={blackRef}
         style={{
@@ -505,7 +512,7 @@ function AnimatedCharacters({
         </div>
       </div>
 
-      { }
+      {/* ── Orange Character ── */}
       <div
         ref={orangeRef}
         style={{
@@ -586,7 +593,7 @@ function AnimatedCharacters({
         </div>
       </div>
 
-      { }
+      {/* ── Yellow Character ── */}
       <div
         ref={yellowRef}
         style={{
@@ -665,7 +672,7 @@ function AnimatedCharacters({
             }
           />
         </div>
-        { }
+        {/* Yellow character mouth */}
         <div
           style={{
             position: "absolute",

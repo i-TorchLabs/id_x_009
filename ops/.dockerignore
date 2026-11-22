@@ -1,0 +1,50 @@
+# 构建上下文过滤：避免把运行时数据、缓存、secrets、其他插件打进镜像。
+#
+# 作用域说明：Podman/Docker 只读取「构建上下文根目录」下的 .dockerignore。
+# 在 up.sh 中，service 的 build.context 是 i-Core 仓库根，
+# 因此本文件（在 ops/ 下）在 service 构建时不会被自动读取。
+#
+# Dockerfile.service 已改为按需 COPY（main.py / src / utils / config /
+# x_models/_contracts / x_models/id_x_009），不再 COPY .，
+# 因此其他插件目录不会被复制进镜像。本文件主要用于：
+#   1. 手动构建时显式指定：podman build --ignorefile x_models/id_x_009/ops/.dockerignore
+#      -f x_models/id_x_009/ops/Dockerfile.service .
+#   2. 作为「service 镜像不应包含哪些内容」的文档化清单
+
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+
+.venv/
+venv/
+**/node_modules/
+
+**/dist/
+**/out/
+**/build/
+*.log
+
+runtime/
+local-storage/
+logs/
+
+docs/
+test/
+tools/
+scripts/
+prompts/
+ops/
+
+.env
+.env.*
+!.env.example
+!.env.template
+
+.vscode/
+.zed/
+.idea/
+.DS_Store
+**/*.swp

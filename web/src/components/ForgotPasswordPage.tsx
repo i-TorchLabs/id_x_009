@@ -1,106 +1,108 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useTheme } from "@/context/ThemeContext";
-import { ThemeToggle } from "./ThemeToggle";
-import LeftPanel from "./LeftPanel";
-import ForgotPasswordForm from "./ForgotPasswordForm";
-import { userGraphqlApi } from "@/api/graphql";
+/**
+ * 忘记密码页（STANDARD-FRONTEND）
+ * 无密码框：密码相关动画 prop 固定为 false/0；成功态同页切换。
+ */
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { FormEvent, useState } from "react";
+import LeftPanel from "@/components/LeftPanel";
+import ForgotPasswordForm from "@/components/ForgotPasswordForm";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { EMAIL_REGEX } from "@/components/auth/constants";
+import { useTheme } from "@/context/ThemeContext";
+import { userGraphqlApi } from "@/api/graphql";
 
 export default function ForgotPasswordPage() {
     const { theme } = useTheme();
-    const isDark = theme === "dark";
+
     const [email, setEmail] = useState("");
+    const [agreeTerms, setAgreeTerms] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
-
     const [errorMsg, setErrorMsg] = useState("");
-    const [emailError, setEmailError] = useState(false);
-    const [agreedToTerms, setAgreedToTerms] = useState(false);
-    const [termsError, setTermsError] = useState(false);
+    const [emailError, setEmailError] = useState("");
+    const [termsError, setTermsError] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
 
-    const onSubmit = useCallback(
-        async (e: React.FormEvent) => {
-            e.preventDefault();
-            setEmailError(false);
-            setTermsError(false);
-            setErrorMsg("");
+    const validate = (): boolean => {
+        let ok = true;
+        const trimmed = email.trim();
+        if (!trimmed || !EMAIL_REGEX.test(trimmed)) {
+            setEmailError("请输入有效邮箱");
+            ok = false;
+        } else {
+            setEmailError("");
+        }
+        if (!agreeTerms) {
+            setTermsError("请先同意服务条款");
+            ok = false;
+        } else {
+            setTermsError("");
+        }
+        return ok;
+    };
 
-            const cleanEmail = email.trim();
+    const onSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        setErrorMsg("");
+        if (!validate()) return;
 
-            if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
-                setEmailError(true);
-                setErrorMsg("Please enter a valid email address.");
-                return;
-            }
-
-            if (!agreedToTerms) {
-                setTermsError(true);
-                setErrorMsg("You must agree to the Terms of Service.");
-                return;
-            }
-
-            setIsSubmitting(true);
-
-            try {
-                const result = await userGraphqlApi.forgotPassword({
-                    email: cleanEmail,
-                });
-
-                console.log("Forgot password result:", result);
-
-                if (!result.forgotPassword.success) {
-                    setErrorMsg(
-                        result.forgotPassword.message || "处理失败，请重试",
-                    );
-                    return;
-                }
-
+        setIsSubmitting(true);
+        try {
+            const result = await userGraphqlApi.forgotPassword({
+                email: email.trim(),
+            });
+            if (result.forgotPassword.success) {
                 setIsSuccess(true);
-            } catch (error: any) {
-                console.error("Forgot password failed:", error);
-                setErrorMsg(error.message || "处理失败，请重试");
-            } finally {
-                setIsSubmitting(false);
+                setSuccessMessage(
+                    result.forgotPassword.message ||
+                        `若邮箱 ${email.trim()} 已注册，重置说明已发送`,
+                );
+            } else {
+                setErrorMsg(result.forgotPassword.message || "请求失败，请稍后重试");
             }
-        },
-        [email, agreedToTerms],
-    );
+        } catch (err) {
+            setErrorMsg(err instanceof Error ? err.message : "网络错误，请稍后重试");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
-        <div className="h-screen relative overflow-hidden">
-            <div className="absolute top-4 right-4 z-50">
+        <div className="relative h-screen overflow-hidden">
+            <div className="absolute top-4 right-4 z-50 flex items-center gap-1">
                 <ThemeToggle />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 h-full">
+
+            <div className="grid h-full grid-cols-1 md:grid-cols-2">
                 <LeftPanel
                     isTyping={isTyping}
                     isPasswordFocused={false}
                     showPassword={false}
                     passwordLength={0}
-                    isDark={isDark}
+                    isDark={theme === "dark"}
                 />
 
                 <div
-                    className={`flex items-center justify-center px-8 py-12 md:px-16 md:py-16 ${isDark ? "bg-[#000000]" : "bg-[#f5f5f7]"}`}
+                    className="flex items-center justify-center p-8 md:p-10 theme-transition"
+                    style={{ background: "var(--bg)" }}
                 >
                     <ForgotPasswordForm
                         email={email}
-                        setEmail={setEmail}
-                        isTyping={isTyping}
-                        setIsTyping={setIsTyping}
+                        agreeTerms={agreeTerms}
                         isSubmitting={isSubmitting}
                         isSuccess={isSuccess}
-                        onSubmit={onSubmit}
                         errorMsg={errorMsg}
                         emailError={emailError}
-                        agreedToTerms={agreedToTerms}
-                        setAgreedToTerms={setAgreedToTerms}
                         termsError={termsError}
-                        isDark={isDark}
+                        successMessage={successMessage}
+                        onEmailChange={setEmail}
+                        onAgreeTermsChange={setAgreeTerms}
+                        onEmailFocus={() => setIsTyping(true)}
+                        onEmailBlur={() => setIsTyping(false)}
+                        onSubmit={onSubmit}
                     />
                 </div>
             </div>

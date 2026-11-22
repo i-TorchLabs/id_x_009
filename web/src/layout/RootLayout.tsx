@@ -3,7 +3,7 @@ import { Providers } from "@/layout/Providers";
 import "@/assets/styles/globals.css";
 
 export const metadata: Metadata = {
-    title: "AI 模型评测平台",
+    title: "评测平台",
     description:
         "标准化、自动化、可复现的 AI 模型评测工作台：评分图谱、评测任务、模型注册与数据集管理。",
     icons: {
@@ -17,8 +17,8 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" className="antialiased">
-            <body className="h-screen overflow-hidden">
+        <html lang="zh-CN" className="antialiased" suppressHydrationWarning>
+            <body className="min-h-screen theme-transition" style={{ background: "var(--bg)", color: "var(--fg)" }}>
                 <Providers>{children}</Providers>
             </body>
         </html>

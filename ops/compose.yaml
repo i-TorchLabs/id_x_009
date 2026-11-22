@@ -1,0 +1,92 @@
+# ====================================================================
+# id_x_009 · podman-compose（内置 pgvector PostgreSQL）
+#
+# 说明：日常推荐 bash up.sh / bash down.sh（单 Pod 四容器）。
+# 本文件为声明式替代，请勿与 up.sh 混用。
+# ====================================================================
+
+name: id_x_009
+
+services:
+  db:
+    image: ${POSTGRES_IMAGE:-docker.io/pgvector/pgvector:pg18}
+    container_name: id_x_009-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-id_x_009}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes:
+      - id_x_009_db:/var/lib/postgresql
+      - ./init:/docker-entrypoint-initdb.d:ro,z
+    ports:
+      - "${DB_BIND_ADDR:-127.0.0.1}:${DB_HOST_PORT:-55409}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-id_x_009}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  service:
+    build:
+      context: ../../../
+      dockerfile: x_models/id_x_009/ops/Dockerfile.service
+    image: localhost/id_x_009-service
+    container_name: id_x_009-service
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_NAME: ${POSTGRES_DB:-id_x_009}
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      PROJECT_PATH: /app/i-Core
+    volumes:
+      # 与 up.sh 一致：容器 /app/i-Core/logs → 模块根 x_models/id_x_009/logs
+      # z=SELinux 共享标签；U=按容器用户 chown（rootless 可写）
+      - ../logs:/app/i-Core/logs:z,U
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -X POST http://127.0.0.1:7000/b/id_x_009/graphql -H 'Content-Type: application/json' -d '{\"query\":\"{ health { status } }\"}' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_BASE_URL: ""
+        NEXT_PUBLIC_SUB_VERSION: "/b/id_x_009/graphql"
+    image: localhost/id_x_009-web
+    container_name: id_x_009-web
+    restart: unless-stopped
+    depends_on:
+      - service
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:2000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  haproxy:
+    image: ${HAPROXY_IMAGE:-docker.io/library/haproxy:3.0}
+    container_name: id_x_009-haproxy
+    restart: unless-stopped
+    volumes:
+      - ./haproxy.compose.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro,z
+    ports:
+      - "${POD_PORT:-8009}:8080"
+    depends_on:
+      - service
+      - web
+
+volumes:
+  id_x_009_db:

@@ -1,127 +1,130 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useTheme } from "@/context/ThemeContext";
-import { ThemeToggle } from "./ThemeToggle";
-import LeftPanel from "./LeftPanel";
-import LoginForm from "./LoginForm";
-import { userGraphqlApi } from "@/api/graphql";
+/**
+ * 登录页（STANDARD-FRONTEND）
+ * 分屏壳 + LeftPanel 动画 + LoginForm。
+ */
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { FormEvent, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import LeftPanel from "@/components/LeftPanel";
+import LoginForm from "@/components/LoginForm";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { AUTH_BASE, EMAIL_REGEX, PASSWORD_MIN_LEN } from "@/components/auth/constants";
+import { useTheme } from "@/context/ThemeContext";
+import { userGraphqlApi } from "@/api/graphql";
 
 export default function LoginPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { theme } = useTheme();
-    const isDark = theme === "dark";
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [remember, setRemember] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
     const [errorMsg, setErrorMsg] = useState("");
-    const [emailError, setEmailError] = useState(false);
-    const [passwordError, setPasswordError] = useState(false);
+    const [emailError, setEmailError] = useState("");
+    const [passwordError, setPasswordError] = useState("");
 
-    const onSubmit = useCallback(
-        async (e: React.FormEvent) => {
-            e.preventDefault();
-            setEmailError(false);
-            setPasswordError(false);
-            setErrorMsg("");
+    const registeredHint = searchParams.get("registered") === "true";
 
-            const cleanEmail = email.trim();
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (localStorage.getItem("token")) {
+            router.replace(`${AUTH_BASE}/home`);
+        }
+    }, [router]);
 
-            if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
-                setEmailError(true);
-                setErrorMsg("Please enter a valid email address.");
-                return;
-            }
+    const validate = (): boolean => {
+        let ok = true;
+        const trimmed = email.trim();
+        if (!trimmed || !EMAIL_REGEX.test(trimmed)) {
+            setEmailError("请输入有效邮箱");
+            ok = false;
+        } else {
+            setEmailError("");
+        }
+        if (!password || password.length < PASSWORD_MIN_LEN) {
+            setPasswordError(`密码至少 ${PASSWORD_MIN_LEN} 位`);
+            ok = false;
+        } else {
+            setPasswordError("");
+        }
+        return ok;
+    };
 
-            if (!password || password.length < 6) {
-                setPasswordError(true);
-                setErrorMsg("Password must be at least 6 characters.");
-                return;
-            }
+    const onSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        setErrorMsg("");
+        if (!validate()) return;
 
-            setIsSubmitting(true);
-
-            try {
-                const result = await userGraphqlApi.login({
-                    email: cleanEmail,
-                    password: password,
-                });
-
-                console.log("Login result:", result);
-
-                if (!result.login.success) {
-                    setPasswordError(true);
-                    setErrorMsg(result.login.message || "邮箱或密码错误");
-                    return;
+        setIsSubmitting(true);
+        try {
+            const result = await userGraphqlApi.login({
+                email: email.trim(),
+                password,
+            });
+            if (result.login.success && result.login.token) {
+                localStorage.setItem("token", result.login.token);
+                localStorage.setItem("user", JSON.stringify(result.login.user));
+                if (remember) {
+                    localStorage.setItem("remember", "1");
+                } else {
+                    localStorage.removeItem("remember");
                 }
-
-                if (!result.login.user) {
-                    setPasswordError(true);
-                    setErrorMsg("登录失败，请重试");
-                    return;
-                }
-
-                if (typeof window !== "undefined") {
-                    localStorage.setItem("token", result.login.token || "");
-                    localStorage.setItem(
-                        "user",
-                        JSON.stringify(result.login.user),
-                    );
-                }
-
-                router.push("/f/home");
-            } catch (error: any) {
-                console.error("Login failed:", error);
-                setPasswordError(true);
-                setErrorMsg(error.message || "邮箱或密码错误，请重试");
-            } finally {
-                setIsSubmitting(false);
+                router.push(`${AUTH_BASE}/home`);
+            } else {
+                setErrorMsg(result.login.message || "登录失败，请检查邮箱与密码");
             }
-        },
-        [email, password],
-    );
+        } catch (err) {
+            setErrorMsg(err instanceof Error ? err.message : "网络错误，请稍后重试");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
-        <div className="h-screen relative overflow-hidden">
-            <div className="absolute top-4 right-4 z-50">
+        <div className="relative h-screen overflow-hidden">
+            <div className="absolute top-4 right-4 z-50 flex items-center gap-1">
                 <ThemeToggle />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 h-full">
+
+            <div className="grid h-full grid-cols-1 md:grid-cols-2">
                 <LeftPanel
                     isTyping={isTyping}
                     isPasswordFocused={isPasswordFocused}
                     showPassword={showPassword}
                     passwordLength={password.length}
-                    isDark={isDark}
+                    isDark={theme === "dark"}
                 />
 
                 <div
-                    className={`flex items-center justify-center px-8 py-12 md:px-16 md:py-16 ${isDark ? "bg-[#000000]" : "bg-[#f5f5f7]"}`}
+                    className="flex items-center justify-center p-8 md:p-10 theme-transition"
+                    style={{ background: "var(--bg)" }}
                 >
                     <LoginForm
                         email={email}
-                        setEmail={setEmail}
                         password={password}
-                        setPassword={setPassword}
+                        remember={remember}
                         showPassword={showPassword}
-                        setShowPassword={setShowPassword}
-                        isTyping={isTyping}
-                        setIsTyping={setIsTyping}
-                        isPasswordFocused={isPasswordFocused}
-                        setIsPasswordFocused={setIsPasswordFocused}
                         isSubmitting={isSubmitting}
-                        onSubmit={onSubmit}
                         errorMsg={errorMsg}
                         emailError={emailError}
                         passwordError={passwordError}
-                        isDark={isDark}
+                        registeredHint={registeredHint}
+                        onEmailChange={setEmail}
+                        onPasswordChange={setPassword}
+                        onRememberChange={setRemember}
+                        onToggleShowPassword={() => setShowPassword((v) => !v)}
+                        onEmailFocus={() => setIsTyping(true)}
+                        onEmailBlur={() => setIsTyping(false)}
+                        onPasswordFocus={() => setIsPasswordFocused(true)}
+                        onPasswordBlur={() => setIsPasswordFocused(false)}
+                        onSubmit={onSubmit}
                     />
                 </div>
             </div>

@@ -18,6 +18,7 @@ import {
   type ScorePoint,
   type TaskReport,
 } from "@/api/graphql";
+import { AUTH_BASE } from "@/components/auth/constants";
 import { getTokens, SF_DISPLAY, SF_TEXT, SF_MONO } from "@/utils/tokens";
 
 
@@ -97,8 +98,14 @@ const Card = ({
   noPadding?: boolean;
 }) => (
   <div
-    className={`rounded-2xl overflow-hidden ${className}`}
-    style={{ background: bg, boxShadow: shadow, border, ...style }}
+    className={`overflow-hidden ${className}`}
+    style={{
+      background: bg,
+      boxShadow: shadow,
+      border,
+      borderRadius: 12,
+      ...style,
+    }}
   >
     {noPadding ? children : <div style={{ padding: "28px" }}>{children}</div>}
   </div>
@@ -299,7 +306,7 @@ export default function Home() {
     } catch {}
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    router.push("/f/login");
+    router.push(`${AUTH_BASE}/login`);
   }, [router]);
 
   const [graphData, setGraphData] = useState<{ points: ScorePoint[]; frontier: { x: number; y: number }[]; vendors: string[] }>({ points: [], frontier: [], vendors: [] });
@@ -1784,7 +1791,7 @@ export default function Home() {
             { }
             <img src="/favicon.ico" alt="logo" style={{ width: 22, height: 22 }} />
             <span style={{ fontFamily: SF_DISPLAY, fontSize: "16px", fontWeight: 600, color: fg, letterSpacing: "-0.35px", whiteSpace: "nowrap" }}>
-              评测平台 · id_x_009
+              评测平台
             </span>
           </div>
 
