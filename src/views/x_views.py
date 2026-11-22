@@ -83,12 +83,20 @@ def _classify_eval_error(exc: Exception) -> str:
         return "UPSTREAM_TIMEOUT"
     if "connection error" in message or "apiconnectionerror" in message:
         return "UPSTREAM_CONNECTION"
+    if "401" in message or "authenticationerror" in message or "invalid token" in message:
+        return "AUTHENTICATION_FAILED"
+    if "quota" in message or "pre_consume_token_quota_failed" in message:
+        return "QUOTA_EXCEEDED"
     if "no available channel" in message or "无可用渠道" in message:
         return "UPSTREAM_NO_CHANNEL"
     if "429" in message or "rate limit" in message:
         return "RATE_LIMITED"
     if "model" in message and ("not found" in message or "unavailable" in message):
         return "MODEL_NOT_FOUND"
+    if "invalid model identifier" in message or "does not offer model" in message:
+        return "MODEL_NOT_FOUND"
+    if "400" in message or "badrequesterror" in message:
+        return "INVALID_PARAMETER"
     if "token" in message and "usage" in message:
         return "MISSING_USAGE"
     if "score" in message or "answer" in message:
