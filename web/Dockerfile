@@ -5,8 +5,8 @@ WORKDIR /app
 ARG NEXT_PUBLIC_BASE_URL
 ARG NEXT_PUBLIC_SUB_VERSION
 
-COPY package.json ./
-RUN npm ci --registry=https://registry.npmmirror.com || npm install --registry=https://registry.npmmirror.com
+COPY package.json package-lock.json ./
+RUN npm ci --registry=https://registry.npmmirror.com
 
 COPY . .
 
