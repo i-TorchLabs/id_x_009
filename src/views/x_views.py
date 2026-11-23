@@ -377,7 +377,6 @@ def _model_to_type(m: Model) -> ModelType:
         name=m.name,
         vendor=m.vendor,
         series=m.series,
-        version=m.version,
         base_url=(m.base_url or "").strip() or "https://apihk.chinarouter.net/v1",
         api_key_masked=_mask_api_key(m.api_key),
         model_name=_api_model_name(m),
@@ -561,8 +560,8 @@ async def view_login(input: LoginInput, info=None) -> AuthResponseType:
             if not await verify_password(input.password, user.password_hash):
                 return AuthResponseType(success=False, message=invalid_msg)
 
-            if user.is_active is False:
-                return AuthResponseType(success=False, message="用户尚未激活")
+            if not user.is_active:
+                return AuthResponseType(success=False, message="该用户尚未激活")
 
             # 存量 SHA256 哈希在成功登录后升级为 bcrypt
             if _is_legacy_sha256_hash(user.password_hash):
@@ -618,7 +617,7 @@ async def view_register(input: RegisterInput, info=None) -> AuthResponseType:
                 email=input.email,
                 password_hash=password_hash,
                 phone=input.phone,
-                is_active=True,
+                is_active=False,
             )
             session.add(new_user)
             await session.commit()
@@ -626,7 +625,7 @@ async def view_register(input: RegisterInput, info=None) -> AuthResponseType:
 
             return AuthResponseType(
                 success=True,
-                message="注册成功，可直接登录",
+                message="注册成功，请等待管理员激活后再登录",
                 token=None,
                 user=UserInfoType(
                     id=new_user.id,
@@ -718,13 +717,12 @@ async def view_register_model(input: RegisterModelInput) -> RegisterModelResultT
         name = (input.name or "").strip()
         vendor = (input.vendor or "").strip()
         series = (input.series or "").strip()
-        version = (input.version or "").strip()
         base_url = (input.base_url or "").strip().rstrip("/")
         api_key = (input.api_key or "").strip()
         model_name = (input.model_name or "").strip() or name
-        if not name or not vendor or not series or not version:
+        if not name or not vendor or not series:
             return RegisterModelResultType(
-                success=False, message="请填写名称、厂商、系列、版本"
+                success=False, message="请填写名称、厂商、系列"
             )
         if not base_url:
             return RegisterModelResultType(success=False, message="请填写 Base-Url")
@@ -741,19 +739,16 @@ async def view_register_model(input: RegisterModelInput) -> RegisterModelResultT
             return RegisterModelResultType(success=False, message="输出价不能为负")
 
         async with get_session()() as session:
-            dup = await session.execute(
-                select(Model).where(Model.name == name, Model.version == version)
-            )
+            dup = await session.execute(select(Model).where(Model.name == name))
             if dup.scalar_one_or_none() is not None:
                 return RegisterModelResultType(
-                    success=False, message="同名同版本模型已注册"
+                    success=False, message="同名模型已注册"
                 )
 
             model = Model(
                 name=name,
                 vendor=vendor or "Unknown",
                 series=series or name,
-                version=version,
                 base_url=base_url,
                 api_key=api_key,
                 model_name=model_name,
@@ -787,7 +782,7 @@ async def view_register_model(input: RegisterModelInput) -> RegisterModelResultT
             await session.refresh(model)
 
             logger.info(
-                f"{get_request_id()}注册模型成功: {model.name}@{model.version} "
+                f"{get_request_id()}注册模型成功: {model.name} "
                 f"model_name={model.model_name} base_url={model.base_url}"
             )
             return RegisterModelResultType(
@@ -807,13 +802,12 @@ async def view_update_model(input: UpdateModelInput) -> RegisterModelResultType:
         name = (input.name or "").strip()
         vendor = (input.vendor or "").strip()
         series = (input.series or "").strip()
-        version = (input.version or "").strip()
         base_url = (input.base_url or "").strip().rstrip("/")
         api_key_raw = (input.api_key or "").strip() if input.api_key is not None else ""
         model_name = (input.model_name or "").strip() or name
-        if not name or not vendor or not series or not version:
+        if not name or not vendor or not series:
             return RegisterModelResultType(
-                success=False, message="请填写名称、厂商、系列、版本"
+                success=False, message="请填写名称、厂商、系列"
             )
         if not base_url:
             return RegisterModelResultType(success=False, message="请填写 Base-Url")
@@ -835,13 +829,12 @@ async def view_update_model(input: UpdateModelInput) -> RegisterModelResultType:
             dup = await session.execute(
                 select(Model).where(
                     Model.name == name,
-                    Model.version == version,
                     Model.id != input.model_id,
                 )
             )
             if dup.scalar_one_or_none() is not None:
                 return RegisterModelResultType(
-                    success=False, message="同名同版本模型已存在"
+                    success=False, message="同名模型已存在"
                 )
 
             next_api_key = api_key_raw if api_key_raw else (model.api_key or "")
@@ -858,7 +851,6 @@ async def view_update_model(input: UpdateModelInput) -> RegisterModelResultType:
             model.name = name
             model.vendor = vendor
             model.series = series
-            model.version = version
             model.base_url = base_url
             model.api_key = next_api_key
             model.model_name = model_name
@@ -873,7 +865,7 @@ async def view_update_model(input: UpdateModelInput) -> RegisterModelResultType:
 
             logger.info(
                 f"{get_request_id()}更新模型成功: id={model.id} "
-                f"{model.name}@{model.version} model_name={model.model_name} "
+                f"{model.name} model_name={model.model_name} "
                 f"base_url={model.base_url} api_key_updated={bool(api_key_raw)}"
             )
             return RegisterModelResultType(
@@ -896,7 +888,6 @@ async def view_delete_model(model_id: int) -> TaskActionResultType:
                 return TaskActionResultType(success=False, message="模型不存在")
 
             name = model.name
-            version = model.version
             task_ids = list(
                 (
                     await session.execute(
@@ -928,7 +919,7 @@ async def view_delete_model(model_id: int) -> TaskActionResultType:
             await session.delete(model)
             await session.commit()
             logger.info(
-                f"{get_request_id()}模型已删除: {name}@{version} id={model_id} "
+                f"{get_request_id()}模型已删除: {name} id={model_id} "
                 f"cascaded_tasks={len(task_ids)}"
             )
             return TaskActionResultType(
@@ -950,7 +941,7 @@ def _build_fingerprint(
 ) -> str:
     payload = {
         "dataset": [d.snapshot for d in datasets],
-        "model": f"{model.name}@{model.version}",
+        "model": model.name,
         "model_name": _api_model_name(model),
         "base_url": (model.base_url or "").strip(),
         "engine": f"{backend or model.backend or 'api'}@0.6",
@@ -986,7 +977,7 @@ async def view_create_task(input: CreateTaskInput) -> CreateTaskResultType:
                 name=input.name,
                 model_id=model.id,
                 dataset_ids=json.dumps(input.dataset_ids),
-                backend=input.backend or "vllm",
+                backend=input.backend or "api",
                 status="Pending",
                 progress=0,
                 fingerprint=fingerprint,
@@ -997,8 +988,8 @@ async def view_create_task(input: CreateTaskInput) -> CreateTaskResultType:
 
         logger.info(
             f"{get_request_id()}{_eval_tag(task_uid, task_id)} 任务已创建 | "
-            f"name={input.name!r} model={model.name}@{model.version} "
-            f"datasets={list(input.dataset_ids)} backend={input.backend or 'vllm'} "
+            f"name={input.name!r} model={model.name} "
+            f"datasets={list(input.dataset_ids)} backend={input.backend or 'api'} "
             f"status=Pending → 启动执行线程"
         )
         _start_runner(task_id)
@@ -1014,7 +1005,7 @@ async def view_create_task(input: CreateTaskInput) -> CreateTaskResultType:
                 model_name=model.name,
                 model_vendor=model.vendor,
                 dataset_ids=list(input.dataset_ids),
-                backend=input.backend or "vllm",
+                backend=input.backend or "api",
                 status="Pending",
                 progress=0,
                 fingerprint=fingerprint,
@@ -1334,11 +1325,12 @@ async def _run_domain_eval(
 
     async def _on_domain_sample(index: int, total_n: int, evaluation) -> None:
         pct = await bump_progress(index, total_n)
+        status = evaluation.score_status or _score_status_for_domain(evaluation.score)
         logger.info(
             f"{tag} 样本进度 {index}/{total_n} ({pct}%) | "
             f"sample_id={evaluation.sample_id} domain={evaluation.domain} "
-            f"score={evaluation.score} latency_ms={evaluation.latency_ms} "
-            f"tokens={evaluation.total_tokens}"
+            f"score_status={status} score={evaluation.score} "
+            f"latency_ms={evaluation.latency_ms} tokens={evaluation.total_tokens}"
         )
 
     async with OpenAICompatibleLLMClient(llm_config) as client:
@@ -1353,7 +1345,11 @@ async def _run_domain_eval(
         )
 
     logger.info(f"{tag} 样本评测结束 | total={len(evaluations)} → 聚合域分与成本")
+    skipped = 0
     for item in evaluations:
+        status = item.score_status or _score_status_for_domain(item.score)
+        if status in {"timeout", "error", "connection_error", "rate_limited"}:
+            skipped += 1
         session.add(
             EvalSampleResult(
                 task_id=task.id,
@@ -1362,7 +1358,7 @@ async def _run_domain_eval(
                 business_module=item.domain,
                 answer=item.answer,
                 score=float(item.score) if item.score is not None else 0.0,
-                score_status=_score_status_for_domain(item.score),
+                score_status=status,
                 response_id=item.response_id,
                 returned_model=item.returned_model,
                 prompt_tokens=item.prompt_tokens,
@@ -1375,16 +1371,34 @@ async def _run_domain_eval(
     aggregate = aggregate_scores(evaluations, weights)
     domain_scores = aggregate["domain_scores"]
     if not domain_scores:
-        raise RuntimeError("能力域评测没有可评分样本（缺少 expected_answer 或全部未命中）")
+        raise RuntimeError(
+            "能力域评测没有可评分样本（缺少 expected_answer、全部未命中，"
+            f"或上游失败过多 skipped={skipped}/{len(evaluations)}）"
+        )
     composite = aggregate["composite_score"]
     if composite is None:
         raise RuntimeError("能力域评测无法计算综合分")
 
+    billed = [
+        item
+        for item in evaluations
+        if (item.prompt_tokens or 0) > 0 or (item.completion_tokens or 0) > 0
+    ]
+    if not billed:
+        raise RuntimeError(
+            f"真实评测缺少 token usage（上游失败 skipped={skipped}/{len(evaluations)}）"
+        )
     cost_per_task = await _real_eval_cost(
-        session, evaluations, api_model, model=task.model
+        session, billed, api_model, model=task.model
     )
-    latency_p50 = round(_median([item.latency_ms for item in evaluations]), 3)
-    throughput = _estimate_throughput(list(evaluations))
+    scored_latency = [
+        item.latency_ms
+        for item in evaluations
+        if (item.score_status or "")
+        not in {"timeout", "error", "connection_error", "rate_limited"}
+    ]
+    latency_p50 = round(_median(scored_latency or [item.latency_ms for item in evaluations]), 3)
+    throughput = _estimate_throughput(list(billed) or list(evaluations))
 
     task.progress = 100
     task.status = "Done"
@@ -1409,7 +1423,7 @@ async def _run_domain_eval(
         f"{tag} 任务完成 Done | format=domain source={source} "
         f"composite={composite} domains={domain_scores} "
         f"cost_per_task={cost_per_task} latency_p50_ms={latency_p50} "
-        f"throughput_tps={throughput}"
+        f"throughput_tps={throughput} skipped_upstream={skipped}/{len(evaluations)}"
     )
 
 
@@ -1435,14 +1449,18 @@ async def _run_financebench_eval(
     pass_count = 0
     fail_count = 0
     unparseable_count = 0
+    upstream_error_count = 0
+    _upstream_statuses = {"timeout", "error", "connection_error", "rate_limited"}
 
     async def _on_fb_sample(index: int, total_n: int, record: dict) -> None:
-        nonlocal pass_count, fail_count, unparseable_count
+        nonlocal pass_count, fail_count, unparseable_count, upstream_error_count
         status = str(record["score"].get("status", ""))
         if status == "pass":
             pass_count += 1
         elif status == "unparseable":
             unparseable_count += 1
+        elif status in _upstream_statuses:
+            upstream_error_count += 1
         else:
             fail_count += 1
         pct = await bump_progress(index, total_n)
@@ -1453,7 +1471,8 @@ async def _run_financebench_eval(
             f"score_status={status} score={record['score'].get('score')} "
             f"latency_ms={record.get('latency_ms')} "
             f"tokens={record.get('total_tokens')} "
-            f"pass={pass_count} fail={fail_count} unparseable={unparseable_count}"
+            f"pass={pass_count} fail={fail_count} unparseable={unparseable_count} "
+            f"upstream_error={upstream_error_count}"
         )
 
     async with OpenAICompatibleLLMClient(llm_config) as client:
@@ -1469,7 +1488,7 @@ async def _run_financebench_eval(
     logger.info(
         f"{tag} 样本评测结束 | total={len(sample_results)} "
         f"pass={pass_count} fail={fail_count} unparseable={unparseable_count} "
-        f"→ 写入样本明细与汇总"
+        f"upstream_error={upstream_error_count} → 写入样本明细与汇总"
     )
     for item in sample_results:
         score_info = item["score"]
@@ -1492,13 +1511,33 @@ async def _run_financebench_eval(
         )
     if not sample_results:
         raise RuntimeError("FinanceBench 样本列表不能为空")
-    scores = [item["score"]["score"] for item in sample_results]
+    scored = [
+        item
+        for item in sample_results
+        if str(item["score"].get("status", "")) not in _upstream_statuses
+    ]
+    if not scored:
+        raise RuntimeError(
+            f"FinanceBench 全部样本上游失败 "
+            f"(upstream_error={upstream_error_count}/{len(sample_results)})"
+        )
+    scores = [item["score"]["score"] for item in scored]
+    billed = [
+        item
+        for item in sample_results
+        if (item.get("prompt_tokens") or 0) > 0 or (item.get("completion_tokens") or 0) > 0
+    ]
+    if not billed:
+        raise RuntimeError(
+            f"FinanceBench 评测缺少 token usage "
+            f"(upstream_error={upstream_error_count}/{len(sample_results)})"
+        )
     cost_per_task = await _real_eval_cost_from_records(
-        session, sample_results, api_model, model=task.model
+        session, billed, api_model, model=task.model
     )
     composite = round(sum(scores) / len(scores), 2)
-    latency_p50 = round(_median([item["latency_ms"] for item in sample_results]), 3)
-    throughput = _estimate_throughput(list(sample_results))
+    latency_p50 = round(_median([item["latency_ms"] for item in scored]), 3)
+    throughput = _estimate_throughput(list(billed))
     task.progress = 100
     task.status = "Done"
     # FinanceBench 仅覆盖业务专项；其余五域无对应样本，记 0
@@ -1523,8 +1562,9 @@ async def _run_financebench_eval(
         f"{tag} 任务完成 Done | format=financebench "
         f"composite={composite} cost_per_task={cost_per_task} "
         f"latency_p50_ms={latency_p50} throughput_tps={throughput} "
-        f"pass={pass_count}/{len(sample_results)} "
-        f"fail={fail_count} unparseable={unparseable_count}"
+        f"pass={pass_count}/{len(scored)} scored={len(scored)}/{len(sample_results)} "
+        f"fail={fail_count} unparseable={unparseable_count} "
+        f"upstream_error={upstream_error_count}"
     )
 
 
@@ -1931,7 +1971,6 @@ async def view_score_cost_graph(
                         name=m.name,
                         vendor=m.vendor,
                         series=m.series,
-                        version=m.version,
                         access_type=m.access_type,
                         backend=m.backend,
                         composite_score=r.composite_score,

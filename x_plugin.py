@@ -12,8 +12,12 @@ from x_models._contracts import PluginInterface
 _LEAKED_DEMO_API_KEYS = (
     "sk-c0NWVjzh9yAto2piPdsJ0ccHEKzXKjrEmlckXvEuAbdlbo5K",
 )
-_DEMO_SHA256 = "d2b000ce0875cad8615dd8cf34f788635c959a0ce2b8a977e22caab745380b06"
-_DEMO_BCRYPT = "$2b$12$0Yjsya0o6BzuQJDZXW8rQ.rSTynSY6ulC4uCmlXbwhSJCnJdZMQ.q"
+_DEMO_EMAIL = "sme@cuhk.edu.cn"
+_DEMO_BCRYPT = "$2b$12$wKAc6mMGuWAql7IPMvQwReZOP3CM8QykfzcvHzW/lC1TF56k9Mlo."
+# 旧演示账号哈希升级（仅匹配已知弱 SHA256）
+_LEGACY_DEMO_EMAIL = "demo@id-x-009.local"
+_LEGACY_DEMO_SHA256 = "d2b000ce0875cad8615dd8cf34f788635c959a0ce2b8a977e22caab745380b06"
+_LEGACY_DEMO_BCRYPT = "$2b$12$0Yjsya0o6BzuQJDZXW8rQ.rSTynSY6ulC4uCmlXbwhSJCnJdZMQ.q"
 
 
 class _Idx009Plugin:
@@ -47,9 +51,99 @@ class _Idx009Plugin:
         await conn.execute(
             text("ALTER TABLE eval_tasks ADD COLUMN IF NOT EXISTS error_type VARCHAR(32)")
         )
+        await self._ensure_users_is_active(conn)
+        # 先去掉 version，再跑旧表迁移（ON CONFLICT 依赖 name 唯一）
+        await self._drop_models_info_version(conn)
         await self._migrate_to_models_info(conn)
         await self._scrub_and_inject_api_keys(conn)
-        await self._upgrade_demo_password_hash(conn)
+        await self._ensure_demo_user(conn)
+
+    async def _ensure_users_is_active(self, conn: AsyncConnection) -> None:
+        """确保 users.is_active 存在，默认 false；不改写已有 TRUE/FALSE 值。"""
+        if not await self._table_exists(conn, "users"):
+            return
+        await conn.execute(
+            text(
+                """
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT FALSE
+                """
+            )
+        )
+        await conn.execute(
+            text("UPDATE users SET is_active = FALSE WHERE is_active IS NULL")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ALTER COLUMN is_active SET DEFAULT FALSE")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ALTER COLUMN is_active SET NOT NULL")
+        )
+
+    async def _column_exists(self, conn: AsyncConnection, table: str, column: str) -> bool:
+        result = await conn.execute(
+            text(
+                """
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = :t
+                  AND column_name = :c
+                """
+            ),
+            {"t": table, "c": column},
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def _drop_models_info_version(self, conn: AsyncConnection) -> None:
+        """移除 models_info.version，唯一约束改为仅 name。"""
+        if not await self._table_exists(conn, "models_info"):
+            return
+        await conn.execute(
+            text("ALTER TABLE models_info DROP CONSTRAINT IF EXISTS uq_models_info_name_version")
+        )
+        if await self._column_exists(conn, "models_info", "version"):
+            # 同名多版本时保留最小 id，并重映射外键
+            await conn.execute(
+                text(
+                    """
+                    DO $$
+                    DECLARE r RECORD;
+                    BEGIN
+                      FOR r IN
+                        SELECT a.id AS drop_id, b.keep_id
+                        FROM models_info a
+                        JOIN (
+                          SELECT name, MIN(id) AS keep_id
+                          FROM models_info
+                          GROUP BY name
+                          HAVING COUNT(*) > 1
+                        ) b ON a.name = b.name AND a.id <> b.keep_id
+                      LOOP
+                        UPDATE eval_tasks SET model_id = r.keep_id WHERE model_id = r.drop_id;
+                        UPDATE eval_results SET model_id = r.keep_id WHERE model_id = r.drop_id;
+                        UPDATE eval_sample_results SET model_id = r.keep_id WHERE model_id = r.drop_id;
+                        DELETE FROM models_info WHERE id = r.drop_id;
+                      END LOOP;
+                    END $$;
+                    """
+                )
+            )
+            await conn.execute(text("ALTER TABLE models_info DROP COLUMN IF EXISTS version"))
+        await conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                  IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'uq_models_info_name'
+                  ) THEN
+                    ALTER TABLE models_info ADD CONSTRAINT uq_models_info_name UNIQUE (name);
+                  END IF;
+                END $$;
+                """
+            )
+        )
 
     async def _table_exists(self, conn: AsyncConnection, table: str) -> bool:
         result = await conn.execute(
@@ -84,7 +178,7 @@ class _Idx009Plugin:
                     text(
                         """
                         INSERT INTO models_info (
-                            id, name, vendor, series, version,
+                            id, name, vendor, series,
                             base_url, api_key, model_name,
                             access_type, backend, params_b, context_length,
                             input_price_per_1m, output_price_per_1m, created_at
@@ -94,7 +188,6 @@ class _Idx009Plugin:
                             m.name,
                             COALESCE(NULLIF(m.vendor, ''), 'Unknown'),
                             COALESCE(NULLIF(m.series, ''), m.name),
-                            COALESCE(NULLIF(m.version, ''), 'gateway'),
                             COALESCE(NULLIF(m.base_url, ''), 'https://apihk.chinarouter.net/v1'),
                             COALESCE(m.api_key, ''),
                             COALESCE(NULLIF(m.model_name, ''), m.name),
@@ -110,12 +203,12 @@ class _Idx009Plugin:
                     )
                 )
             else:
-                # models_info 已有数据：按 name+version 合并字段，并把外键从旧 id 映射到新 id
+                # models_info 已有数据：按 name 合并字段，并把外键从旧 id 映射到新 id
                 await conn.execute(
                     text(
                         """
                         INSERT INTO models_info (
-                            name, vendor, series, version,
+                            name, vendor, series,
                             base_url, api_key, model_name,
                             access_type, backend, params_b, context_length,
                             input_price_per_1m, output_price_per_1m, created_at
@@ -124,7 +217,6 @@ class _Idx009Plugin:
                             m.name,
                             COALESCE(NULLIF(m.vendor, ''), 'Unknown'),
                             COALESCE(NULLIF(m.series, ''), m.name),
-                            COALESCE(NULLIF(m.version, ''), 'gateway'),
                             COALESCE(NULLIF(m.base_url, ''), 'https://apihk.chinarouter.net/v1'),
                             COALESCE(m.api_key, ''),
                             COALESCE(NULLIF(m.model_name, ''), m.name),
@@ -136,7 +228,7 @@ class _Idx009Plugin:
                             COALESCE(m.output_price_per_1m, 0),
                             m.created_at
                         FROM models AS m
-                        ON CONFLICT (name, version) DO UPDATE SET
+                        ON CONFLICT (name) DO UPDATE SET
                             vendor = EXCLUDED.vendor,
                             series = EXCLUDED.series,
                             base_url = COALESCE(
@@ -175,7 +267,6 @@ class _Idx009Plugin:
                                 FROM models AS m
                                 JOIN models_info AS i
                                   ON i.name = m.name
-                                 AND i.version = COALESCE(NULLIF(m.version, ''), 'gateway')
                                 WHERE t.model_id = m.id
                                   AND t.model_id <> i.id
                                 """
@@ -192,13 +283,13 @@ class _Idx009Plugin:
                 )
             )
 
-        # 2) 从旧 model_info 补全/插入（gateway 版本）
+        # 2) 从旧 model_info 补全/插入
         if has_model_info:
             await conn.execute(
                 text(
                     """
                     INSERT INTO models_info (
-                        name, vendor, series, version,
+                        name, vendor, series,
                         base_url, api_key, model_name,
                         access_type, backend, params_b, context_length,
                         input_price_per_1m, output_price_per_1m, created_at
@@ -207,7 +298,6 @@ class _Idx009Plugin:
                         COALESCE(NULLIF(i.name, ''), i.model_name, 'unknown'),
                         COALESCE(NULLIF(i.vendor, ''), 'Unknown'),
                         COALESCE(NULLIF(i.series, ''), COALESCE(NULLIF(i.name, ''), i.model_name), 'unknown'),
-                        'gateway',
                         COALESCE(NULLIF(i.base_url, ''), 'https://apihk.chinarouter.net/v1'),
                         COALESCE(i.api_key, ''),
                         COALESCE(NULLIF(i.model_name, ''), i.name, 'unknown'),
@@ -219,7 +309,7 @@ class _Idx009Plugin:
                         COALESCE(i.output_price_per_1m, 0),
                         i.created_at
                     FROM model_info AS i
-                    ON CONFLICT (name, version) DO UPDATE SET
+                    ON CONFLICT (name) DO UPDATE SET
                         vendor = EXCLUDED.vendor,
                         series = EXCLUDED.series,
                         base_url = COALESCE(
@@ -325,18 +415,37 @@ class _Idx009Plugin:
             {"k": env_key},
         )
 
-    async def _upgrade_demo_password_hash(self, conn: AsyncConnection) -> None:
-        """将演示账号存量 SHA256 哈希升级为 bcrypt（仅匹配已知弱哈希）。"""
+    async def _ensure_demo_user(self, conn: AsyncConnection) -> None:
+        """预置/对齐演示账号；并将旧 demo 账号的 SHA256 哈希升级为 bcrypt。"""
+        if not await self._table_exists(conn, "users"):
+            return
+        await conn.execute(
+            text(
+                """
+                INSERT INTO users (email, password_hash, is_active)
+                VALUES (:email, :bcrypt, TRUE)
+                ON CONFLICT (email) DO UPDATE SET
+                    password_hash = EXCLUDED.password_hash,
+                    is_active = TRUE,
+                    updated_at = CURRENT_TIMESTAMP
+                """
+            ),
+            {"email": _DEMO_EMAIL, "bcrypt": _DEMO_BCRYPT},
+        )
         await conn.execute(
             text(
                 """
                 UPDATE users
                 SET password_hash = :bcrypt
-                WHERE email = 'demo@id-x-009.local'
+                WHERE email = :email
                   AND password_hash = :sha256
                 """
             ),
-            {"bcrypt": _DEMO_BCRYPT, "sha256": _DEMO_SHA256},
+            {
+                "email": _LEGACY_DEMO_EMAIL,
+                "bcrypt": _LEGACY_DEMO_BCRYPT,
+                "sha256": _LEGACY_DEMO_SHA256,
+            },
         )
 
 

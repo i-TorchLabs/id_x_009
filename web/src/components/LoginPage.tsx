@@ -92,6 +92,17 @@ export default function LoginPage() {
 
     return (
         <div className="relative h-screen overflow-hidden">
+            {/* 小屏无 LeftPanel 时仍显示左上角品牌；大屏由 LeftPanel 展示，此处隐藏避免重复 */}
+            <div className="absolute top-4 left-4 z-50 flex items-center gap-2.5 md:hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/favicon.ico" alt="ID-009 logo" className="h-7 w-7" />
+                <span
+                    className="font-display text-base font-semibold tracking-[-0.2px]"
+                    style={{ color: "var(--fg)" }}
+                >
+                    ID-009
+                </span>
+            </div>
             <div className="absolute top-4 right-4 z-50 flex items-center gap-0">
                 <LocaleToggle />
                 <ThemeToggle />

@@ -1,7 +1,7 @@
 """Model pricing for real evaluation cost accounting.
 
 Primary source of truth: database table ``models_info``
-(名称/厂商/系列/版本/Base-Url/API-Key/Model-Name/输入价/输出价).
+(名称/厂商/系列/Base-Url/API-Key/Model-Name/输入价/输出价).
 JSON under ``data/pricing/`` remains an offline fallback for scripts without DB.
 """
 from __future__ import annotations

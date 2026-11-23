@@ -67,7 +67,6 @@ class ModelType:
     name: str = strawberry.field(description="模型名称")
     vendor: str = strawberry.field(description="厂商")
     series: str = strawberry.field(description="模型系列")
-    version: str = strawberry.field(description="版本")
     base_url: str = strawberry.field(description="OpenAI 兼容网关 Base URL")
     api_key_masked: str = strawberry.field(description="API Key 脱敏展示")
     model_name: str = strawberry.field(description="上游调用使用的 Model-Name")
@@ -93,7 +92,6 @@ class RegisterModelInput:
     name: str = strawberry.field(description="模型名称")
     vendor: str = strawberry.field(description="厂商")
     series: str = strawberry.field(description="模型系列")
-    version: str = strawberry.field(description="版本")
     base_url: str = strawberry.field(description="OpenAI 兼容网关 Base URL")
     api_key: str = strawberry.field(description="调用网关的 API Key")
     model_name: str = strawberry.field(description="上游 Chat Completions 的 model 字段")
@@ -121,7 +119,6 @@ class UpdateModelInput:
     name: str = strawberry.field(description="模型名称")
     vendor: str = strawberry.field(description="厂商")
     series: str = strawberry.field(description="模型系列")
-    version: str = strawberry.field(description="版本")
     base_url: str = strawberry.field(description="OpenAI 兼容网关 Base URL")
     api_key: Optional[str] = strawberry.field(
         default=None,
@@ -220,7 +217,7 @@ class CreateTaskInput:
     name: str = strawberry.field(description="任务名称")
     model_id: int = strawberry.field(description="评测模型 ID")
     dataset_ids: List[int] = strawberry.field(description="数据集 ID 列表")
-    backend: str = strawberry.field(default="vllm", description="推理后端")
+    backend: str = strawberry.field(default="api", description="推理后端")
     temperature: float = strawberry.field(default=0.0, description="采样温度")
     max_tokens: int = strawberry.field(default=2048, description="最大生成 tokens")
 
@@ -298,7 +295,6 @@ class ScorePointType:
     name: str = strawberry.field(description="模型名称")
     vendor: str = strawberry.field(description="厂商")
     series: str = strawberry.field(description="系列")
-    version: str = strawberry.field(description="版本")
     access_type: str = strawberry.field(description="接入方式")
     backend: str = strawberry.field(description="推理后端")
     composite_score: float = strawberry.field(description="综合评分")

@@ -84,7 +84,7 @@ export default function LeftPanel({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/favicon.ico"
-          alt={`${t("common.productName")} logo`}
+          alt="ID-009 logo"
           className="w-7 h-7"
         />
         {/* 主题适配：浅色模式为黑色，深色模式保持白色以保证可读性 */}
@@ -92,7 +92,7 @@ export default function LeftPanel({
           className="font-display text-base font-semibold tracking-[-0.2px]"
           style={{ color: isDark ? "#ffffff" : "#1d1d1f" }}
         >
-          {t("common.productName")}
+          ID-009
         </span>
       </div>
 

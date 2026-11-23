@@ -16,7 +16,7 @@ FinanceBench（默认回退格式）使用 `data/finqa/finqa_test_100.json`，�
 ```dotenv
 ID009_LLM_BASE_URL=https://apihk.chinarouter.net/v1
 ID009_LLM_API_KEY=<set outside source control>
-ID009_LLM_TIMEOUT_SECONDS=120
+ID009_LLM_TIMEOUT_SECONDS=300
 ID009_LLM_MAX_RETRIES=0
 ID009_LLM_TOKEN_PARAMETER=max_tokens
 ID009_LLM_INPUT_COST_PER_1K_TOKENS=0
@@ -26,7 +26,21 @@ ID009_EVAL_MODE=real
 ID009_EVAL_FORMAT=financebench
 # 可选；financebench 默认使用模块内 FinQA 快照
 # ID009_EVAL_SAMPLES_FILE=/app/i-Core/x_models/id_x_009/data/finqa/finqa_test_100.json
+# 样本级重试：超时/连接/429/5xx 自动重试；耗尽后默认跳过该样本继续任务
+ID009_EVAL_SAMPLE_MAX_RETRIES=2
+ID009_EVAL_SAMPLE_RETRY_BACKOFF_SECONDS=2
+ID009_EVAL_CONTINUE_ON_SAMPLE_ERROR=true
 ```
+
+### UPSTREAM_TIMEOUT
+
+单条样本上游超时会分类为 `UPSTREAM_TIMEOUT`。旧行为是**整任务 Failed**；现默认：
+
+1. 每样本最多重试 `ID009_EVAL_SAMPLE_MAX_RETRIES` 次（指数退避）；
+2. 仍失败则将该样本记为 `score_status=timeout` 并继续后续样本；
+3. 综合分只统计成功拿到模型回复的样本（上游失败不计入模型能力分）。
+
+若希望「任一超时即失败」，设 `ID009_EVAL_CONTINUE_ON_SAMPLE_ERROR=false`。SDK 的 `ID009_LLM_MAX_RETRIES` 仍建议保持 `0`，避免与样本级重试叠加导致重复计费。
 
 可用模型清单、Base-Url、API-Key、Model-Name 与单价均见统一表 `models_info`。`02_seed.sql` 写入演示账号、数据集与模型信息，**不含**虚拟评测结果。
 

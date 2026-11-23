@@ -65,7 +65,7 @@ def register(
         input_price = price.get("input_price_per_1m")
         output_price = price.get("output_price_per_1m")
         query = """mutation { registerModel(input: {
-          name: %s, vendor: %s, series: %s, version: "gateway",
+          name: %s, vendor: %s, series: %s,
           baseUrl: %s, apiKey: %s, modelName: %s,
           inputPricePer1m: %s, outputPricePer1m: %s,
           accessType: "api", backend: "api", contextLength: 131072

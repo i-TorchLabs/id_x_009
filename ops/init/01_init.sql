@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(128) NOT NULL UNIQUE,
     phone VARCHAR(20),
     password_hash VARCHAR(256) NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -16,6 +16,7 @@ CREATE INDEX IF NOT EXISTS ix_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS ix_users_phone ON users(phone);
 
 COMMENT ON TABLE users IS '用户表';
+COMMENT ON COLUMN users.is_active IS '是否激活；新用户默认 false，需管理员置 true 后方可登录';
 
 CREATE TABLE IF NOT EXISTS user_tokens (
     id SERIAL PRIMARY KEY,
@@ -50,7 +51,6 @@ CREATE TABLE IF NOT EXISTS models_info (
     name VARCHAR(128) NOT NULL,
     vendor VARCHAR(64) NOT NULL,
     series VARCHAR(128) NOT NULL,
-    version VARCHAR(64) NOT NULL DEFAULT 'gateway',
     base_url VARCHAR(512) NOT NULL DEFAULT 'https://apihk.chinarouter.net/v1',
     api_key VARCHAR(512) NOT NULL DEFAULT '',
     model_name VARCHAR(128) NOT NULL DEFAULT '',
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS models_info (
     input_price_per_1m DOUBLE PRECISION NOT NULL DEFAULT 0,
     output_price_per_1m DOUBLE PRECISION NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_models_info_name_version UNIQUE (name, version)
+    CONSTRAINT uq_models_info_name UNIQUE (name)
 );
 
 CREATE INDEX IF NOT EXISTS ix_models_info_vendor ON models_info(vendor);
@@ -69,7 +69,7 @@ CREATE INDEX IF NOT EXISTS ix_models_info_series ON models_info(series);
 CREATE INDEX IF NOT EXISTS ix_models_info_model_name ON models_info(model_name);
 CREATE INDEX IF NOT EXISTS ix_models_info_name ON models_info(name);
 
-COMMENT ON TABLE models_info IS '模型信息表（名称/厂商/系列/版本/Base-Url/API-Key/Model-Name/单价/接入方式）';
+COMMENT ON TABLE models_info IS '模型信息表（名称/厂商/系列/Base-Url/API-Key/Model-Name/单价/接入方式）';
 COMMENT ON COLUMN models_info.base_url IS 'OpenAI 兼容网关 Base URL';
 COMMENT ON COLUMN models_info.api_key IS '调用网关的 API Key（默认空，由 ID009_LLM_API_KEY 或注册页注入）';
 COMMENT ON COLUMN models_info.model_name IS '上游 Chat Completions 使用的 model 字段';
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS eval_tasks (
     name VARCHAR(256) NOT NULL,
     model_id INTEGER NOT NULL REFERENCES models_info(id),
     dataset_ids TEXT NOT NULL,
-    backend VARCHAR(32) NOT NULL DEFAULT 'vllm',
+    backend VARCHAR(32) NOT NULL DEFAULT 'api',
     status VARCHAR(16) NOT NULL DEFAULT 'Draft',
     progress INTEGER NOT NULL DEFAULT 0,
     fingerprint TEXT,

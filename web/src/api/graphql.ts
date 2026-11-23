@@ -141,7 +141,6 @@ export interface ModelItem {
   name: string;
   vendor: string;
   series: string;
-  version: string;
   baseUrl: string;
   apiKeyMasked: string;
   modelName: string;
@@ -186,7 +185,6 @@ export interface RegisterModelInput {
   name: string;
   vendor: string;
   series: string;
-  version: string;
   baseUrl: string;
   apiKey: string;
   modelName: string;
@@ -203,7 +201,6 @@ export interface UpdateModelInput {
   name: string;
   vendor: string;
   series: string;
-  version: string;
   baseUrl: string;
   apiKey?: string | null;
   modelName: string;
@@ -237,7 +234,6 @@ export interface ScorePoint {
   name: string;
   vendor: string;
   series: string;
-  version: string;
   accessType: string;
   backend: string;
   compositeScore: number;
@@ -497,7 +493,6 @@ export const evalGraphqlApi = {
             name
             vendor
             series
-            version
             baseUrl
             apiKeyMasked
             modelName
@@ -686,7 +681,6 @@ export const evalGraphqlApi = {
             name
             vendor
             series
-            version
             accessType
             backend
             compositeScore
@@ -732,7 +726,6 @@ export const evalGraphqlApi = {
             name
             vendor
             series
-            version
             baseUrl
             apiKeyMasked
             modelName
@@ -782,7 +775,6 @@ export const evalGraphqlApi = {
             name
             vendor
             series
-            version
             baseUrl
             apiKeyMasked
             modelName

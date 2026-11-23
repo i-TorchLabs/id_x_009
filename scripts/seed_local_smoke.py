@@ -42,7 +42,6 @@ async def main() -> None:
                 name="local-smoke-model",
                 vendor="local",
                 series="smoke",
-                version="dev",
                 base_url=os.getenv("ID009_LLM_BASE_URL", "https://apihk.chinarouter.net/v1"),
                 api_key=os.getenv("ID009_LLM_API_KEY", ""),
                 model_name="local-smoke-model",

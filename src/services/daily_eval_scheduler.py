@@ -132,7 +132,7 @@ async def _collect_plans(maker: async_sessionmaker) -> list[dict[str, Any]]:
             dataset_ids = _parse_dataset_ids(task.dataset_ids)
             if not dataset_ids:
                 continue
-            key = (task.model_id, json.dumps(dataset_ids), task.backend or "vllm")
+            key = (task.model_id, json.dumps(dataset_ids), task.backend or "api")
             if key in seen:
                 continue
             seen.add(key)
@@ -141,7 +141,7 @@ async def _collect_plans(maker: async_sessionmaker) -> list[dict[str, Any]]:
                 {
                     "model_id": task.model_id,
                     "dataset_ids": dataset_ids,
-                    "backend": task.backend or "vllm",
+                    "backend": task.backend or "api",
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "base_name": task.name,
@@ -209,7 +209,7 @@ async def _create_pending_task(
             )
             return None
 
-        backend = str(plan.get("backend") or "vllm")
+        backend = str(plan.get("backend") or "api")
         temperature = float(plan.get("temperature") or 0.0)
         max_tokens = int(plan.get("max_tokens") or 2048)
         fingerprint = _build_fingerprint(

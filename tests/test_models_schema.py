@@ -24,7 +24,6 @@ class ModelSchemaTests(unittest.TestCase):
                 "name",
                 "vendor",
                 "series",
-                "version",
                 "base_url",
                 "api_key",
                 "model_name",
@@ -35,6 +34,7 @@ class ModelSchemaTests(unittest.TestCase):
             }
             <= info_cols
         )
+        self.assertNotIn("version", info_cols)
         sample_cols = {item["name"] for item in inspect(engine).get_columns("dataset_samples")}
         self.assertTrue(
             {

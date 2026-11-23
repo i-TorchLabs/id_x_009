@@ -3,7 +3,7 @@ import { Providers } from "@/layout/Providers";
 import "@/assets/styles/globals.css";
 
 export const metadata: Metadata = {
-    title: "ID-009 AI Dashboard",
+    title: "TorchLabs",
     description:
         "标准化、自动化、可复现的 AI 模型评测工作台：评分图谱、评测任务、模型注册与数据集管理。",
     icons: {

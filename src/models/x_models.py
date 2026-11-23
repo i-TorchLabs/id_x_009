@@ -10,6 +10,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import (
@@ -82,8 +83,12 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(
         String(256), nullable=False, comment="密码哈希"
     )
-    is_active: Mapped[Optional[bool]] = mapped_column(
-        Boolean, default=True, comment="是否激活"
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=false(),
+        comment="是否激活",
     )
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), default=_utcnow, comment="创建时间"
@@ -138,7 +143,7 @@ class ModelsInfo(Base):
 
     __tablename__ = "models_info"
     __table_args__ = (
-        UniqueConstraint("name", "version", name="uq_models_info_name_version"),
+        UniqueConstraint("name", name="uq_models_info_name"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -150,9 +155,6 @@ class ModelsInfo(Base):
     )
     series: Mapped[str] = mapped_column(
         String(128), nullable=False, index=True, comment="模型系列"
-    )
-    version: Mapped[str] = mapped_column(
-        String(64), nullable=False, default="gateway", comment="版本"
     )
     base_url: Mapped[str] = mapped_column(
         String(512),
@@ -285,7 +287,7 @@ class EvalTask(Base):
         Text, nullable=False, comment="数据集 ID 列表（JSON 数组字符串）"
     )
     backend: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="vllm", comment="推理后端"
+        String(32), nullable=False, default="api", comment="推理后端"
     )
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="Draft", index=True,

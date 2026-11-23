@@ -900,7 +900,7 @@ export default function Home() {
   const [ctName, setCtName] = useState("");
   const [ctModelId, setCtModelId] = useState<number | "">("");
   const [ctDatasetIds, setCtDatasetIds] = useState<number[]>([]);
-  const [ctBackend, setCtBackend] = useState("vllm");
+  const [ctBackend, setCtBackend] = useState("api");
   const [ctTemperature, setCtTemperature] = useState("0");
   const [ctMaxTokens, setCtMaxTokens] = useState("2048");
   const [ctSubmitting, setCtSubmitting] = useState(false);
@@ -915,7 +915,7 @@ export default function Home() {
     setCtName("");
     setCtModelId("");
     setCtDatasetIds([]);
-    setCtBackend("vllm");
+    setCtBackend("api");
     setCtTemperature("0");
     setCtMaxTokens("2048");
     setCtLoadingData(true);
@@ -1148,7 +1148,6 @@ export default function Home() {
   const [rmName, setRmName] = useState("");
   const [rmVendor, setRmVendor] = useState("");
   const [rmSeries, setRmSeries] = useState("");
-  const [rmVersion, setRmVersion] = useState("");
   const [rmBaseUrl, setRmBaseUrl] = useState("https://apihk.chinarouter.net/v1");
   const [rmApiKey, setRmApiKey] = useState("");
   const [rmApiKeyHint, setRmApiKeyHint] = useState("");
@@ -1164,7 +1163,6 @@ export default function Home() {
     setRmName("");
     setRmVendor("");
     setRmSeries("");
-    setRmVersion("");
     setRmBaseUrl("https://apihk.chinarouter.net/v1");
     setRmApiKey("");
     setRmApiKeyHint("");
@@ -1185,7 +1183,6 @@ export default function Home() {
     setRmName(m.name || "");
     setRmVendor(m.vendor || "");
     setRmSeries(m.series || "");
-    setRmVersion(m.version || "");
     setRmBaseUrl(m.baseUrl || "https://apihk.chinarouter.net/v1");
     setRmApiKey("");
     setRmApiKeyHint(m.apiKeyMasked || "");
@@ -1202,7 +1199,7 @@ export default function Home() {
 
   const submitRegisterModel = useCallback(async () => {
     setRmError("");
-    if (!rmName.trim() || !rmVendor.trim() || !rmSeries.trim() || !rmVersion.trim()) {
+    if (!rmName.trim() || !rmVendor.trim() || !rmSeries.trim()) {
       setRmError(tx("home.needModelFields"));
       return;
     }
@@ -1230,7 +1227,6 @@ export default function Home() {
         name: rmName.trim(),
         vendor: rmVendor.trim(),
         series: rmSeries.trim(),
-        version: rmVersion.trim(),
         baseUrl: rmBaseUrl.trim().replace(/\/+$/, ""),
         modelName: rmModelName.trim(),
         inputPricePer1m: inputPrice,
@@ -1276,7 +1272,6 @@ export default function Home() {
     rmName,
     rmVendor,
     rmSeries,
-    rmVersion,
     rmBaseUrl,
     rmApiKey,
     rmModelName,
@@ -1505,9 +1500,6 @@ export default function Home() {
               </Badge>
               <Badge bg={badgeBg} color={fg2}>
                 {selectedPoint.series}
-              </Badge>
-              <Badge bg={badgeBg} color={fg2} mono>
-                v{selectedPoint.version}
               </Badge>
             </div>
           </div>
@@ -2312,7 +2304,7 @@ export default function Home() {
           <table style={{ borderCollapse: "collapse", width: "100%", fontFamily: SF_TEXT, fontSize: "14px" }}>
             <thead>
               <tr>
-                {[tx("home.tableName"), tx("home.tableVendor"), tx("home.tableSeries"), tx("home.tableVersion"), tx("home.colBaseUrl"), tx("home.colApiKey"), tx("home.colModelName"), tx("home.colInputPrice"), tx("home.colOutputPrice"), tx("home.colActions")].map((h) => (
+                {[tx("home.tableName"), tx("home.tableVendor"), tx("home.tableSeries"), tx("home.colModelName"), tx("home.colInputPrice"), tx("home.colOutputPrice"), tx("home.colActions")].map((h) => (
                   <th
                     key={h}
                     style={{
@@ -2342,15 +2334,6 @@ export default function Home() {
                   </td>
                   <td style={{ padding: "11px 14px 11px 0", borderBottom: `1px solid ${divider}`, color: fg2, whiteSpace: "nowrap" }}>
                     {m.series}
-                  </td>
-                  <td style={{ padding: "11px 14px 11px 0", borderBottom: `1px solid ${divider}`, color: fg2, fontFamily: SF_MONO, fontSize: "12px", whiteSpace: "nowrap" }}>
-                    {m.version}
-                  </td>
-                  <td style={{ padding: "11px 14px 11px 0", borderBottom: `1px solid ${divider}`, color: fg2, fontFamily: SF_MONO, fontSize: "11px", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.baseUrl}>
-                    {m.baseUrl || "—"}
-                  </td>
-                  <td style={{ padding: "11px 14px 11px 0", borderBottom: `1px solid ${divider}`, color: fg3, fontFamily: SF_MONO, fontSize: "11px", whiteSpace: "nowrap" }}>
-                    {m.apiKeyMasked || "—"}
                   </td>
                   <td style={{ padding: "11px 14px 11px 0", borderBottom: `1px solid ${divider}`, color: fg2, fontFamily: SF_MONO, fontSize: "12px", whiteSpace: "nowrap" }}>
                     {m.modelName || "—"}
@@ -2386,7 +2369,6 @@ export default function Home() {
                             window.confirm(
                               tx("home.deleteModelConfirm", {
                                 name: m.name,
-                                version: m.version,
                               }),
                             )
                           ) {
@@ -2844,7 +2826,7 @@ export default function Home() {
                           <optgroup key={vendor} label={vendor}>
                             {ms.map((m) => (
                               <option key={m.id} value={m.id}>
-                                {m.vendor} / {m.name}@{m.version}
+                                {m.vendor} / {m.name}
                               </option>
                             ))}
                           </optgroup>
@@ -3367,27 +3349,15 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                    <div>
-                      <FieldLabel color={fg3}>{tx("home.seriesRequired")}</FieldLabel>
-                      <input
-                        type="text"
-                        value={rmSeries}
-                        onChange={(e) => setRmSeries(e.target.value)}
-                        placeholder="如 Qwen3"
-                        style={inputBaseStyle(fg, inputBg, inputBorder)}
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel color={fg3}>{tx("home.versionRequired")}</FieldLabel>
-                      <input
-                        type="text"
-                        value={rmVersion}
-                        onChange={(e) => setRmVersion(e.target.value)}
-                        placeholder="如 1.0"
-                        style={inputBaseStyle(fg, inputBg, inputBorder)}
-                      />
-                    </div>
+                  <div>
+                    <FieldLabel color={fg3}>{tx("home.seriesRequired")}</FieldLabel>
+                    <input
+                      type="text"
+                      value={rmSeries}
+                      onChange={(e) => setRmSeries(e.target.value)}
+                      placeholder="如 Qwen3"
+                      style={inputBaseStyle(fg, inputBg, inputBorder)}
+                    />
                   </div>
 
                   <div>

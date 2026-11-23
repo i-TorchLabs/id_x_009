@@ -118,7 +118,7 @@ def _assert_safe_base_url(base_url: str) -> None:
 class LLMConfig:
     base_url: str
     api_key: str
-    timeout_seconds: float = 120.0
+    timeout_seconds: float = 300.0
     max_retries: int = 0
     token_parameter: str = "max_tokens"
 
@@ -142,7 +142,7 @@ class LLMConfig:
         ).strip().rstrip("/")
         api_key = os.getenv("ID009_LLM_API_KEY", "").strip()
         try:
-            timeout_seconds = float(os.getenv("ID009_LLM_TIMEOUT_SECONDS", "120"))
+            timeout_seconds = float(os.getenv("ID009_LLM_TIMEOUT_SECONDS", "300"))
             max_retries = int(os.getenv("ID009_LLM_MAX_RETRIES", "0"))
         except ValueError as exc:
             raise LLMConfigurationError("LLM timeout/retry 环境变量格式不正确") from exc
@@ -175,7 +175,7 @@ class LLMConfig:
             if env is None or not env.api_key:
                 raise LLMConfigurationError("未配置模型 API-Key / ID009_LLM_API_KEY")
             resolved_key = env.api_key
-        timeout_seconds = env.timeout_seconds if env is not None else 120.0
+        timeout_seconds = env.timeout_seconds if env is not None else 300.0
         max_retries = env.max_retries if env is not None else 0
         token_parameter = env.token_parameter if env is not None else "max_tokens"
         return cls(

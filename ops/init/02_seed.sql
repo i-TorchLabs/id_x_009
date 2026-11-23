@@ -4,14 +4,17 @@
 -- 统一种子：演示账号 + 数据集 + 模型信息表 models_info
 -- =====================================================================
 
--- 演示账号
+-- 演示账号（密码明文仅作运维说明：P@sssme!；库内仅存 bcrypt）
 INSERT INTO users (email, password_hash, is_active)
 VALUES (
-    'demo@id-x-009.local',
-    '$2b$12$0Yjsya0o6BzuQJDZXW8rQ.rSTynSY6ulC4uCmlXbwhSJCnJdZMQ.q',
+    'sme@cuhk.edu.cn',
+    '$2b$12$wKAc6mMGuWAql7IPMvQwReZOP3CM8QykfzcvHzW/lC1TF56k9Mlo.',
     TRUE
 )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET
+    password_hash = EXCLUDED.password_hash,
+    is_active = EXCLUDED.is_active,
+    updated_at = CURRENT_TIMESTAMP;
 
 -- 六能力域数据集元数据（样本明细见 06–11）
 INSERT INTO datasets (id, name, version, snapshot, domain, sample_count, description) VALUES
@@ -42,39 +45,39 @@ SELECT setval('datasets_id_seq', GREATEST((SELECT MAX(id) FROM datasets), 1));
 -- api_key 默认留空；运行时由 ID009_LLM_API_KEY 或模型注册页注入
 -- ---------------------------------------------------------------------
 INSERT INTO models_info (
-    name, vendor, series, version,
+    name, vendor, series,
     base_url, api_key, model_name,
     access_type, backend, params_b, context_length,
     input_price_per_1m, output_price_per_1m
 ) VALUES
-('deepseek-v4-flash-0731', 'DeepSeek', 'DeepSeek V4 Flash', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'deepseek-v4-flash-0731', 'api', 'api', NULL, 131072, 0.352941, 1.0588),
-('deepseek-v4-pro-0813', 'DeepSeek', 'DeepSeek V4 Pro', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'deepseek-v4-pro-0813', 'api', 'api', NULL, 131072, 1.0588, 3.1765),
-('deepseek-v4.1-flash', 'DeepSeek', 'DeepSeek V4.1 Flash', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'deepseek-v4.1-flash', 'api', 'api', NULL, 131072, 0.235294, 0.941176),
-('deepseek-v4.1-flash-1017', 'DeepSeek', 'DeepSeek V4.1 Flash', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'deepseek-v4.1-flash-1017', 'api', 'api', NULL, 131072, 0.235294, 0.941176),
-('qwen3.8-flash', 'Alibaba', 'Qwen3.8 Flash', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'qwen3.8-flash', 'api', 'api', NULL, 131072, 0.111765, 0.377206),
-('qwen3.8-max', 'Alibaba', 'Qwen3.8 Max', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'qwen3.8-max', 'api', 'api', NULL, 131072, 1.6767, 5.0294),
-('qwen4-max', 'Alibaba', 'Qwen4 Max', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'qwen4-max', 'api', 'api', NULL, 131072, 1.3975, 4.1914),
-('glm-5.3', 'Zhipu', 'GLM 5.3', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'glm-5.3', 'api', 'api', NULL, 131072, 1.062, 3.708),
-('gpt-5.5', 'OpenAI', 'GPT 5.5', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'gpt-5.5', 'api', 'api', NULL, 131072, 4.0, 24.0),
-('gpt-5.6-sol', 'OpenAI', 'GPT 5.6 Sol', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'gpt-5.6-sol', 'api', 'api', NULL, 131072, 3.2, 16.0),
-('gpt-5.6-terra', 'OpenAI', 'GPT 5.6 Terra', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'gpt-5.6-terra', 'api', 'api', NULL, 131072, 1.6, 9.6),
-('gpt-6-astra', 'OpenAI', 'GPT 6 Astra', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'gpt-6-astra', 'api', 'api', NULL, 131072, 8.0, 40.0),
-('gpt-6-sol', 'OpenAI', 'GPT 6 Sol', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'gpt-6-sol', 'api', 'api', NULL, 131072, 1.6, 8.0),
-('gpt-6.1-sol', 'OpenAI', 'GPT 6.1 Sol', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'gpt-6.1-sol', 'api', 'api', NULL, 131072, 1.6, 8.0),
-('claude-fable-5', 'Anthropic', 'Claude Fable 5', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-fable-5', 'api', 'api', NULL, 131072, 9.0, 45.0),
-('claude-fable-5-1', 'Anthropic', 'Claude Fable 5.1', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-fable-5-1', 'api', 'api', NULL, 131072, 9.0, 45.0),
-('claude-fable-5-2', 'Anthropic', 'Claude Fable 5.2', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-fable-5-2', 'api', 'api', NULL, 131072, 7.2, 36.0),
-('claude-haiku-4-5-20251001', 'Anthropic', 'Claude Haiku 4.5', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-haiku-4-5-20251001', 'api', 'api', NULL, 131072, 0.9, 4.5),
-('claude-haiku-5-5', 'Anthropic', 'Claude Haiku 5.5', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-haiku-5-5', 'api', 'api', NULL, 131072, 0.09, 0.45),
-('claude-opus-4-5', 'Anthropic', 'Claude Opus 4.5', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-4-5', 'api', 'api', NULL, 131072, 1.8, 9.0),
-('claude-opus-4-6', 'Anthropic', 'Claude Opus 4.6', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-4-6', 'api', 'api', NULL, 131072, 4.5, 22.5),
-('claude-opus-4-7', 'Anthropic', 'Claude Opus 4.7', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-4-7', 'api', 'api', NULL, 131072, 4.5, 22.5),
-('claude-opus-4-8', 'Anthropic', 'Claude Opus 4.8', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-4-8', 'api', 'api', NULL, 131072, 4.5, 22.5),
-('claude-opus-5', 'Anthropic', 'Claude Opus 5', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-5', 'api', 'api', NULL, 131072, 4.5, 22.5),
-('claude-opus-5-5', 'Anthropic', 'Claude Opus 5.5', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-5-5', 'api', 'api', NULL, 131072, 3.6, 18.0),
-('claude-sonnet-4-6', 'Anthropic', 'Claude Sonnet 4.6', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-sonnet-4-6', 'api', 'api', NULL, 131072, 2.7, 13.5),
-('claude-sonnet-5', 'Anthropic', 'Claude Sonnet 5', 'gateway', 'https://apihk.chinarouter.net/v1', '', 'claude-sonnet-5', 'api', 'api', NULL, 131072, 1.8, 9.0)
-ON CONFLICT (name, version) DO UPDATE SET
+('deepseek-v4-flash-0731', 'DeepSeek', 'DeepSeek V4 Flash', 'https://apihk.chinarouter.net/v1', '', 'deepseek-v4-flash-0731', 'api', 'api', NULL, 131072, 0.352941, 1.0588),
+('deepseek-v4-pro-0813', 'DeepSeek', 'DeepSeek V4 Pro', 'https://apihk.chinarouter.net/v1', '', 'deepseek-v4-pro-0813', 'api', 'api', NULL, 131072, 1.0588, 3.1765),
+('deepseek-v4.1-flash', 'DeepSeek', 'DeepSeek V4.1 Flash', 'https://apihk.chinarouter.net/v1', '', 'deepseek-v4.1-flash', 'api', 'api', NULL, 131072, 0.235294, 0.941176),
+('deepseek-v4.1-flash-1017', 'DeepSeek', 'DeepSeek V4.1 Flash', 'https://apihk.chinarouter.net/v1', '', 'deepseek-v4.1-flash-1017', 'api', 'api', NULL, 131072, 0.235294, 0.941176),
+('qwen3.8-flash', 'Alibaba', 'Qwen3.8 Flash', 'https://apihk.chinarouter.net/v1', '', 'qwen3.8-flash', 'api', 'api', NULL, 131072, 0.111765, 0.377206),
+('qwen3.8-max', 'Alibaba', 'Qwen3.8 Max', 'https://apihk.chinarouter.net/v1', '', 'qwen3.8-max', 'api', 'api', NULL, 131072, 1.6767, 5.0294),
+('qwen4-max', 'Alibaba', 'Qwen4 Max', 'https://apihk.chinarouter.net/v1', '', 'qwen4-max', 'api', 'api', NULL, 131072, 1.3975, 4.1914),
+('glm-5.3', 'Zhipu', 'GLM 5.3', 'https://apihk.chinarouter.net/v1', '', 'glm-5.3', 'api', 'api', NULL, 131072, 1.062, 3.708),
+('gpt-5.5', 'OpenAI', 'GPT 5.5', 'https://apihk.chinarouter.net/v1', '', 'gpt-5.5', 'api', 'api', NULL, 131072, 4.0, 24.0),
+('gpt-5.6-sol', 'OpenAI', 'GPT 5.6 Sol', 'https://apihk.chinarouter.net/v1', '', 'gpt-5.6-sol', 'api', 'api', NULL, 131072, 3.2, 16.0),
+('gpt-5.6-terra', 'OpenAI', 'GPT 5.6 Terra', 'https://apihk.chinarouter.net/v1', '', 'gpt-5.6-terra', 'api', 'api', NULL, 131072, 1.6, 9.6),
+('gpt-6-astra', 'OpenAI', 'GPT 6 Astra', 'https://apihk.chinarouter.net/v1', '', 'gpt-6-astra', 'api', 'api', NULL, 131072, 8.0, 40.0),
+('gpt-6-sol', 'OpenAI', 'GPT 6 Sol', 'https://apihk.chinarouter.net/v1', '', 'gpt-6-sol', 'api', 'api', NULL, 131072, 1.6, 8.0),
+('gpt-6.1-sol', 'OpenAI', 'GPT 6.1 Sol', 'https://apihk.chinarouter.net/v1', '', 'gpt-6.1-sol', 'api', 'api', NULL, 131072, 1.6, 8.0),
+('claude-fable-5', 'Anthropic', 'Claude Fable 5', 'https://apihk.chinarouter.net/v1', '', 'claude-fable-5', 'api', 'api', NULL, 131072, 9.0, 45.0),
+('claude-fable-5-1', 'Anthropic', 'Claude Fable 5.1', 'https://apihk.chinarouter.net/v1', '', 'claude-fable-5-1', 'api', 'api', NULL, 131072, 9.0, 45.0),
+('claude-fable-5-2', 'Anthropic', 'Claude Fable 5.2', 'https://apihk.chinarouter.net/v1', '', 'claude-fable-5-2', 'api', 'api', NULL, 131072, 7.2, 36.0),
+('claude-haiku-4-5-20251001', 'Anthropic', 'Claude Haiku 4.5', 'https://apihk.chinarouter.net/v1', '', 'claude-haiku-4-5-20251001', 'api', 'api', NULL, 131072, 0.9, 4.5),
+('claude-haiku-5-5', 'Anthropic', 'Claude Haiku 5.5', 'https://apihk.chinarouter.net/v1', '', 'claude-haiku-5-5', 'api', 'api', NULL, 131072, 0.09, 0.45),
+('claude-opus-4-5', 'Anthropic', 'Claude Opus 4.5', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-4-5', 'api', 'api', NULL, 131072, 1.8, 9.0),
+('claude-opus-4-6', 'Anthropic', 'Claude Opus 4.6', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-4-6', 'api', 'api', NULL, 131072, 4.5, 22.5),
+('claude-opus-4-7', 'Anthropic', 'Claude Opus 4.7', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-4-7', 'api', 'api', NULL, 131072, 4.5, 22.5),
+('claude-opus-4-8', 'Anthropic', 'Claude Opus 4.8', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-4-8', 'api', 'api', NULL, 131072, 4.5, 22.5),
+('claude-opus-5', 'Anthropic', 'Claude Opus 5', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-5', 'api', 'api', NULL, 131072, 4.5, 22.5),
+('claude-opus-5-5', 'Anthropic', 'Claude Opus 5.5', 'https://apihk.chinarouter.net/v1', '', 'claude-opus-5-5', 'api', 'api', NULL, 131072, 3.6, 18.0),
+('claude-sonnet-4-6', 'Anthropic', 'Claude Sonnet 4.6', 'https://apihk.chinarouter.net/v1', '', 'claude-sonnet-4-6', 'api', 'api', NULL, 131072, 2.7, 13.5),
+('claude-sonnet-5', 'Anthropic', 'Claude Sonnet 5', 'https://apihk.chinarouter.net/v1', '', 'claude-sonnet-5', 'api', 'api', NULL, 131072, 1.8, 9.0)
+ON CONFLICT (name) DO UPDATE SET
   vendor = EXCLUDED.vendor,
   series = EXCLUDED.series,
   base_url = EXCLUDED.base_url,

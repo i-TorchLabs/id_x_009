@@ -7,12 +7,23 @@ the model. This module is deliberately offline and provider-agnostic.
 from __future__ import annotations
 
 import json
+import logging
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from .eval_retry import (
+    chat_with_sample_retries,
+    classify_sample_error_status,
+    continue_on_sample_error,
+    error_chat_placeholder,
+    is_transient_llm_error,
+)
 from .llm_client import LLMChatResult
+
+logger = logging.getLogger("uvicorn.error")
 
 
 _NUMBER_RE = re.compile(
@@ -241,19 +252,52 @@ async def evaluate_financebench_samples(
 ) -> list[dict[str, Any]]:
     """Run FinanceBench samples and return auditable sample-level records.
 
+    Transient upstream failures are retried per sample. Exhausted retries become
+    ``score.status=timeout|error`` rows when continue-on-error is enabled.
+
     ``on_sample_done`` 可选：``async (index, total, record) -> None``，
     在每条样本完成后回调，供运维进度日志 / DB progress 更新。
     """
     results: list[dict[str, Any]] = []
     total = len(samples)
     for index, sample in enumerate(samples, start=1):
-        result: LLMChatResult = await client.chat(
-            model=model,
-            messages=[{"role": "user", "content": sample.model_prompt()}],
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-        score = score_financebench_numeric(result.answer, sample)
+        started = time.perf_counter()
+        try:
+            result: LLMChatResult = await chat_with_sample_retries(
+                client,
+                model=model,
+                messages=[{"role": "user", "content": sample.model_prompt()}],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                sample_id=sample.sample_id,
+            )
+            score = score_financebench_numeric(result.answer, sample)
+        except Exception as exc:
+            if not (continue_on_sample_error() and is_transient_llm_error(exc)):
+                raise
+            status = classify_sample_error_status(exc)
+            detail = str(exc).splitlines()[0] if str(exc) else type(exc).__name__
+            logger.error(
+                "[eval] FinanceBench 样本上游失败已跳过 | sample_id=%s status=%s error=%s",
+                sample.sample_id,
+                status,
+                detail,
+            )
+            result = error_chat_placeholder(
+                model=model,
+                exc=exc,
+                latency_ms=(time.perf_counter() - started) * 1000.0,
+            )
+            score = {
+                "score": 0.0,
+                "status": status,
+                "answer_value": None,
+                "expected_value": sample.expected_value,
+                "absolute_error": None,
+                "absolute_tolerance": sample.absolute_tolerance,
+                "candidates": [],
+                "error": detail,
+            }
         record = {
             "sample_id": sample.sample_id,
             "business_module": sample.business_module,

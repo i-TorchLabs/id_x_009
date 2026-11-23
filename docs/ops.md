@@ -66,9 +66,14 @@ x_models/id_x_009/logs/
 
 评测关键节点统一带 `[eval]` 前缀（含 `uid=` / `id=`），覆盖：创建 → 线程启动 → Running → 样本加载 → 逐条样本（pass/fail/延迟/tokens）→ 汇总落库 → Done/Failed，以及暂停/恢复。
 
+瞬时上游失败会出现 `样本上游瞬时失败将重试` / `样本上游失败已跳过`；任务完成日志含 `skipped_upstream` 或 `upstream_error`。
+
 ```bash
 # 跟踪全部评测进度
 tail -f x_models/id_x_009/logs/info.log | grep --line-buffered '\[eval\]'
+
+# 跟踪超时与重试
+grep -E 'UPSTREAM_TIMEOUT|将重试|已跳过|upstream_error' x_models/id_x_009/logs/*.log
 
 # 跟踪单个任务
 grep 'uid=t-YYYYMMDD-xxxx' x_models/id_x_009/logs/info.log
@@ -76,7 +81,7 @@ grep 'uid=t-YYYYMMDD-xxxx' x_models/id_x_009/logs/info.log
 
 ## 种子数据（`init/02_seed.sql`，首次建库自动执行）
 
-- 演示账号：`demo@id-x-009.local` / `demo123456`
+- 演示账号：`sme@cuhk.edu.cn` / `P@sssme!`（`is_active=TRUE`）
 - 16 个主流模型、6 个评测数据集、16 个已完成评测任务及结果
 
 ## 容器配置要点

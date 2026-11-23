@@ -5,10 +5,21 @@ adapter or a fake client in tests without making network requests itself.
 """
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence
 
+from .eval_retry import (
+    chat_with_sample_retries,
+    classify_sample_error_status,
+    continue_on_sample_error,
+    error_chat_placeholder,
+    is_transient_llm_error,
+)
 from .llm_client import LLMChatResult
+
+logger = logging.getLogger("uvicorn.error")
 
 
 @dataclass(frozen=True)
@@ -33,6 +44,8 @@ class SampleEvaluation:
     completion_tokens: Optional[int]
     total_tokens: Optional[int]
     latency_ms: float
+    score_status: Optional[str] = None
+    error: Optional[str] = None
 
 
 def _normalize_answer(value: str) -> str:
@@ -97,6 +110,11 @@ async def evaluate_samples(
 ) -> list[SampleEvaluation]:
     """Evaluate samples sequentially.
 
+    Transient upstream failures (timeout / connection / 429 / 5xx) are retried
+    per sample. When ``ID009_EVAL_CONTINUE_ON_SAMPLE_ERROR`` is enabled (default),
+    exhausted retries become ``score_status=timeout|error`` rows instead of
+    aborting the whole task.
+
     ``on_sample_done`` 可选：``async (index, total, evaluation) -> None``。
     """
     evaluations: list[SampleEvaluation] = []
@@ -109,17 +127,42 @@ async def evaluate_samples(
         if not sample.prompt.strip():
             raise ValueError("prompt 不能为空")
 
-        result: LLMChatResult = await client.chat(
-            model=model,
-            messages=_sample_messages(sample),
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        started = time.perf_counter()
+        sample_error: Optional[str] = None
+        score_status: Optional[str] = None
+        try:
+            result: LLMChatResult = await chat_with_sample_retries(
+                client,
+                model=model,
+                messages=_sample_messages(sample),
+                temperature=temperature,
+                max_tokens=max_tokens,
+                sample_id=sample.sample_id,
+            )
+            score = score_exact_match(result.answer, sample.expected_answer)
+        except Exception as exc:
+            if not (continue_on_sample_error() and is_transient_llm_error(exc)):
+                raise
+            score_status = classify_sample_error_status(exc)
+            sample_error = str(exc).splitlines()[0] if str(exc) else type(exc).__name__
+            logger.error(
+                "[eval] 样本上游失败已跳过 | sample_id=%s status=%s error=%s",
+                sample.sample_id,
+                score_status,
+                sample_error,
+            )
+            result = error_chat_placeholder(
+                model=model,
+                exc=exc,
+                latency_ms=(time.perf_counter() - started) * 1000.0,
+            )
+            score = None
+
         evaluation = SampleEvaluation(
             sample_id=sample.sample_id,
             domain=sample.domain,
             answer=result.answer,
-            score=score_exact_match(result.answer, sample.expected_answer),
+            score=score,
             requested_model=result.requested_model,
             returned_model=result.returned_model,
             response_id=result.response_id,
@@ -128,6 +171,8 @@ async def evaluate_samples(
             completion_tokens=result.completion_tokens,
             total_tokens=result.total_tokens,
             latency_ms=result.latency_ms,
+            score_status=score_status,
+            error=sample_error,
         )
         evaluations.append(evaluation)
         if on_sample_done is not None:
